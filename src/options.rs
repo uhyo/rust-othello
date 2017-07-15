@@ -5,8 +5,8 @@ use std::error::Error;
 
 #[derive(Debug)]
 pub struct Opts {
-    port: i32,
-    host: String,
+    pub port: i32,
+    pub host: String,
 }
 
 pub fn parse(args: Vec<String>) -> Result<Opts, String>{
