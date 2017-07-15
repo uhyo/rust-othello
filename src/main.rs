@@ -4,19 +4,21 @@ use std::env;
 use std::io;
 use std::io::Write;
 use std::process;
-use std::fmt::Debug;
 use std::error::Error;
 
 use othello::options;
 use othello::client::Client;
+use othello::board;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let opts = options::parse(args).unwrap_or_else(show_and_exit);
 
-    let client = Client::connect(&opts).unwrap_or_else(show_err_and_exit);
+    let board = board::make_board();
 
-    println!("{:?}", client);
+    let mut client = Client::connect(&opts).unwrap_or_else(show_err_and_exit);
+
+    client.init().unwrap();
 
 }
 
