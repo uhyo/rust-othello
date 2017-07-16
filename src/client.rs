@@ -17,9 +17,11 @@ lazy_static! {
     // STARTコマンド
     static ref RSTART: Regex = Regex::new(r"^START (BLACK|WHITE) (\S+) (\d+)").unwrap();
     // ENDコマンド
-    static ref REND: Regex = Regex::new(r"^END (Win|Lose|Tie) (\d+) (\d+)(.*)").unwrap();
+    static ref REND: Regex = Regex::new(r"^END ((?i)WIN|LOSE|TIE) (\d+) (\d+)(.*)").unwrap();
     // MOVEコマンド
-    static ref RMOVE: Regex = Regex::new(r"^MOVE (PASS|[A-H][1-8])$").unwrap();
+    static ref RMOVE: Regex = Regex::new(r"^MOVE (PASS|[A-H][1-8])").unwrap();
+    // ACKコマンド
+    static ref RACK: Regex = Regex::new(r"^ACK (\d+)").unwrap();
 }
 
 #[derive(Debug)]
@@ -58,16 +60,17 @@ impl Client{
 
     // 'waiting for game' state
     fn wait_for_game(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+        trace!("State: wait_for_game");
         let mut buf = String::new();
         self.stream.read_line(&mut buf)?;
         if RBYE.is_match(&buf) {
             // BYEコマンドを受け取った
-            debug!("{}", buf.trim());
+            trace!("{}", buf.trim());
             info!("Connection closed by the server");
             return Ok(());
         }
         if let Some(caps) = RSTART.captures(&buf) {
-            debug!("{}", buf.trim());
+            trace!("{}", buf.trim());
             let color = caps.get(1).unwrap().as_str();
             let opponent = caps.get(2).map_or("UNKNOWN", |m| m.as_str());
             let time: i32 = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap();
@@ -98,12 +101,14 @@ impl Client{
     }
     // opponent's turn
     fn opponent_turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+        trace!("State: opponent_turn");
         // 相手ターンなので通信を待機
         // TODO 相手ターンでも探索したらいいのでは?
         let mut buf = String::new();
         self.stream.read_line(&mut buf)?;
 
         if let Some(caps) = REND.captures(&buf) {
+            trace!("{}", buf.trim());
             // 結果表示
             let mut buf = String::new();
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
@@ -112,6 +117,7 @@ impl Client{
             return Ok(());
         }
         if let Some(caps) = RMOVE.captures(&buf) {
+            trace!("{}", buf.trim());
             let mv = caps.get(1).unwrap().as_str();
             if let Some(mv) = parse_move(&mv) {
                 // 動かす
@@ -127,6 +133,7 @@ impl Client{
                     },
                 }
             }
+            trace!("Failed to parse move"); 
         }
         // 変なレスポンス
         debug!("{}", buf.trim());
@@ -135,6 +142,43 @@ impl Client{
     }
     // my turn
     fn my_turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+        trace!("State: my_turn");
+        // 自分の番なので手番をアレする
+        let mv = strategy.play(board, self.time);
+
+        let s = serialize_move(mv);
+        // 送信
+        writeln!(self.stream.get_mut(), "MOVE {}", s)?;
+
+        // 手元の盤面も更新
+        if let Err(s) = board.apply_move(mv) {
+            warn!("Invalid move produced from our strategy");
+        }
+
+        // ACKを待つ
+        let mut buf = String::with_capacity(20);
+        self.stream.read_line(&mut buf)?;
+
+        if let Some(caps) = RACK.captures(&buf) {
+            // ACK来た
+            trace!("{}", buf.trim());
+            let time: i32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap();
+            self.time = time;
+            // これは相手の番だ
+            return self.turn(board, strategy);
+        }
+        if let Some(caps) = REND.captures(&buf) {
+            trace!("{}", buf.trim());
+            // ゲーム終わった
+            let mut buf = String::new();
+            caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
+            info!("{}", buf.trim());
+
+            return Ok(());
+        }
+        // 変なの来た
+        debug!("{}", buf.trim());
+        warn!("Invalid command sent from the server");
         Ok(())
     }
 }
@@ -148,8 +192,8 @@ fn parse_move(mv: &str) -> Option<Move>{
         if let Some(c1) = chars.next() {
             if let Some(c2) = chars.next() {
                 // 0 -- 7 に変換
-                let x = u32::from(c1) - 0x41;
-                let y = u32::from(c2) - 0x31;
+                let x = (c1 as u8) - 0x41;
+                let y = (c2 as u8) - 0x31;
                 if 0 <= x && x <= 7 && 0 <= y && y <= 7 {
                     return Some(Move::Put {
                         x,
@@ -159,5 +203,17 @@ fn parse_move(mv: &str) -> Option<Move>{
             }
         }
         None
+    }
+}
+
+fn serialize_move(mv: Move) -> String{
+    match mv {
+        Move::Pass => String::from("PASS"),
+        Move::Put {x, y} => {
+            let mut res = String::with_capacity(3);
+            res.push(char::from(0x41 + x));
+            res.push(char::from(0x31 + y));
+            return res;
+        }
     }
 }

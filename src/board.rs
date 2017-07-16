@@ -18,14 +18,14 @@ pub enum Turn{
 pub enum Move{
     Pass,
     Put {
-        x: u32,
-        y: u32,
+        x: u8,
+        y: u8,
     },
 }
 
 pub trait Board: Debug{
-    fn get(&self, x: u32, y: u32) -> Tile;
-    fn set(&mut self, x: u32, y: u32, tile: Tile);
+    fn get(&self, x: u8, y: u8) -> Tile;
+    fn set(&mut self, x: u8, y: u8, tile: Tile);
 
     fn get_turn(&self) -> Turn;
     fn set_turn(&mut self, turn: Turn);
@@ -68,7 +68,7 @@ pub trait Board: Debug{
                         if cx < 0 || cx > 7 || cy < 0 || cy > 7 {
                             break;
                         }
-                        let t = self.get(cx as u32, cy as u32);
+                        let t = self.get(cx as u8, cy as u8);
                         if flag == 0 {
                             if t != op {
                                 // 取れないわ
@@ -90,7 +90,7 @@ pub trait Board: Debug{
                         } else if flag == 2 {
                             // 取ってる
                             if t == op {
-                                self.set(cx as u32, cy as u32, me);
+                                self.set(cx as u8, cy as u8, me);
                                 take_flg = true;
                             } else {
                                 break;
@@ -102,6 +102,9 @@ pub trait Board: Debug{
                     // 石とれてない
                     return Err(String::from("Cannot take pieces"));
                 }
+                // できたからturnを変える
+                let t = self.get_turn();
+                self.set_turn(flip_turn(t));
                 Ok(())
             }
         }
@@ -118,9 +121,9 @@ impl VecBoard {
     pub fn new() -> Self{
         let mut board = Vec::new();
         for i in 0 .. 63 {
-            if i == 27 || i == 35 {
+            if i == 27 || i == 36 {
                 board.push(Tile::White);
-            } else if i == 28 || i == 34 {
+            } else if i == 28 || i == 35 {
                 board.push(Tile::Black);
             } else {
                 board.push(Tile::Empty);
@@ -134,11 +137,11 @@ impl VecBoard {
     }
 }
 impl Board for VecBoard{
-    fn get(&self, x: u32, y: u32) -> Tile{
+    fn get(&self, x: u8, y: u8) -> Tile{
         let pos = (y * 8 + x) as usize;
         self.board[pos]
     }
-    fn set(&mut self, x: u32, y: u32, tile: Tile){
+    fn set(&mut self, x: u8, y: u8, tile: Tile){
         let pos = (y * 8 + x) as usize;
         self.board[pos] = tile;
     }
