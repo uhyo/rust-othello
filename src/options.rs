@@ -1,5 +1,5 @@
 // options: parse options.
-extern crate getopts;
+use getopts;
 
 use std::error::Error;
 
