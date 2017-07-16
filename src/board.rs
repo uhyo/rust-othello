@@ -1,19 +1,33 @@
 // Othello board.
+use std::fmt::Debug;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Tile{
     Empty,
     Black,
     White,
 }
 
-pub trait Board{
-    fn get(&self, x: u32, y: u32) -> Tile;
+#[derive(Copy, Clone, Debug)]
+pub enum Turn{
+    Black,
+    White,
 }
 
+pub trait Board: Debug{
+    fn get(&self, x: u32, y: u32) -> Tile;
+    fn set(&mut self, x: u32, y: u32, tile: Tile);
+
+    fn get_turn(&self) -> Turn;
+    fn set_turn(&mut self, turn: Turn);
+}
+
+#[derive(Debug)]
 pub struct VecBoard {
+    turn: Turn,
     board: Vec<Tile>,
 }
+
 impl VecBoard {
     pub fn new() -> Self{
         let mut board = Vec::new();
@@ -28,6 +42,7 @@ impl VecBoard {
         }
 
         VecBoard {
+            turn: Turn::Black,
             board,
         }
     }
@@ -36,6 +51,17 @@ impl Board for VecBoard{
     fn get(&self, x: u32, y: u32) -> Tile{
         let pos = (y * 8 + x) as usize;
         self.board[pos]
+    }
+    fn set(&mut self, x: u32, y: u32, tile: Tile){
+        let pos = (y * 8 + x) as usize;
+        self.board[pos] = tile;
+    }
+
+    fn get_turn(&self) -> Turn{
+        self.turn
+    }
+    fn set_turn(&mut self, turn: Turn){
+        self.turn = turn;
     }
 }
 

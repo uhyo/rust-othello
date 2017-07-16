@@ -4,16 +4,18 @@ use std::net::TcpStream;
 use std::io;
 use std::io::{Write, BufRead, BufReader};
 
-use regex::{Regex, RegexSet};
+use regex::Regex;
 
 use options;
-use board::Board;
+use board::{Board, Turn};
 use strategy::Strategy;
 
 #[derive(Debug)]
 pub struct Client{
     name: String,
     stream: BufReader<TcpStream>,
+    // remaining time
+    time: i32,
 }
 
 impl Client{
@@ -26,6 +28,7 @@ impl Client{
         Ok(Client {
             name,
             stream,
+            time: 0,
         })
     }
 
@@ -41,22 +44,38 @@ impl Client{
     // 'waiting for game' state
     fn wait_for_game(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
         lazy_static! {
-            static ref RSET: RegexSet = RegexSet::new(&[
-                r"^BYE\s*$",
-            ]).unwrap();
+            // BYEコマンド
+            static ref RBYE: Regex = Regex::new(r"^BYE(?:$|\s)").unwrap();
+            // STARTコマンド
+            static ref RSTART: Regex = Regex::new(r"^START (BLACK|WHITE) (\S+) (\d+)").unwrap();
         }
         let mut buf = String::new();
         self.stream.read_line(&mut buf)?;
-        let matches = RSET.matches(&buf);
-        if matches.matched(0) {
+        if RBYE.is_match(&buf) {
             // BYEコマンドを受け取った
-            debug!("Received BYE command");
+            debug!("{}", buf.trim());
             info!("Connection closed by the server");
             return Ok(());
         }
+        if let Some(caps) = RSTART.captures(&buf) {
+            debug!("{}", buf.trim());
+            let color = caps.get(1).unwrap().as_str();
+            let opponent = caps.get(2).map_or("UNKNOWN", |m| m.as_str());
+            let time: i32 = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap();
+            info!("Game started - vs \"{}\"", opponent);
+            // 情報をセット
+            if color == "BLACK" {
+                board.set_turn(Turn::Black);
+            } else {
+                board.set_turn(Turn::White);
+            }
+            self.time = time;
 
+            return Ok(());
+        }
 
-        println!("{:?}", matches);
+        debug!("{}", buf.trim());
+        warn!("Invalid command sent from the server");
 
         Ok(())
     }

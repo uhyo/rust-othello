@@ -3,8 +3,6 @@ extern crate pretty_env_logger;
 #[macro_use] extern crate log;
 
 use std::env;
-use std::io;
-use std::io::Write;
 use std::process;
 use std::error::Error;
 
