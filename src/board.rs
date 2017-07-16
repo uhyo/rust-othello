@@ -1,17 +1,26 @@
 // Othello board.
 use std::fmt::Debug;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Tile{
     Empty,
     Black,
     White,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Turn{
     Black,
     White,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Move{
+    Pass,
+    Put {
+        x: u32,
+        y: u32,
+    },
 }
 
 pub trait Board: Debug{
@@ -20,6 +29,83 @@ pub trait Board: Debug{
 
     fn get_turn(&self) -> Turn;
     fn set_turn(&mut self, turn: Turn);
+
+    // apply a move to board.
+    fn apply_move(&mut self, mv: Move) -> Result<(), String>{
+        match mv {
+            Move::Pass => {
+                // turnだけ変える
+                let t = self.get_turn();
+                self.set_turn(flip_turn(t));
+                Ok(())
+            },
+            Move::Put {x, y} => {
+                let (me, op) = turn_to_tile(self.get_turn());
+                
+                if self.get(x, y) != Tile::Empty {
+                    return Err(String::from("Tile already exists"));
+                }
+                // 8方向に探索
+                let dirs: Vec<(i32, i32)> = vec![
+                    (-1, -1),
+                    (-1, 0),
+                    (-1, 1),
+                    (0, -1),
+                    (0, 0),
+                    (0, 1),
+                    (1, -1),
+                    (1, 0),
+                    (1, 1),
+                ];
+                let mut take_flg = false;
+                for (dx, dy) in dirs {
+                    let mut flag: u8 = 0;
+                    let mut cx = x as i32;
+                    let mut cy = y as i32;
+                    loop {
+                        cx += dx;
+                        cy += dy;
+                        if cx < 0 || cx > 7 || cy < 0 || cy > 7 {
+                            break;
+                        }
+                        let t = self.get(cx as u32, cy as u32);
+                        if flag == 0 {
+                            if t != op {
+                                // 取れないわ
+                                break;
+                            }
+                            flag = 1;
+                        } else if flag == 1 {
+                            if t == Tile::Empty {
+                                // 取れなかった
+                                break;
+                            }
+                            if t == me {
+                                // 取れるわ
+                                flag = 2;
+                                cx = x as i32;
+                                cy = y as i32;
+                                continue;
+                            }
+                        } else if flag == 2 {
+                            // 取ってる
+                            if t == op {
+                                self.set(cx as u32, cy as u32, me);
+                                take_flg = true;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+                if !take_flg {
+                    // 石とれてない
+                    return Err(String::from("Cannot take pieces"));
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -87,4 +173,19 @@ impl BitBoard {
 
 pub fn make_board() -> VecBoard {
     VecBoard::new()
+}
+
+fn flip_turn(turn: Turn) -> Turn{
+    match turn {
+        Turn::Black => Turn::White,
+        Turn::White => Turn::Black,
+    }
+}
+
+// 自分のと相手の
+fn turn_to_tile(turn: Turn) -> (Tile, Tile){
+    match turn {
+        Turn::Black => (Tile::Black, Tile::White),
+        Turn::White => (Tile::White, Tile::Black),
+    }
 }

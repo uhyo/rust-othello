@@ -1,13 +1,8 @@
 // Othello playing strategy.
-use board::{Board, Tile};
+use board::{Board, Tile, Move};
 
-#[derive(Copy, Clone)]
-pub enum Play {
-    Pass,
-    Put(u32, u32, Tile),
-}
 pub trait Strategy {
-    fn play(&mut self, board: &Board) -> Play;
+    fn play(&mut self, board: &Board) -> Move;
 }
 
 pub struct RandomStrategy {
@@ -20,8 +15,8 @@ impl RandomStrategy{
 
 impl Strategy for RandomStrategy{
     // TODO
-    fn play(&mut self, board: &Board) -> Play{
-        Play::Pass
+    fn play(&mut self, board: &Board) -> Move{
+        Move::Pass
     }
 }
 
