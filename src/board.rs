@@ -1,4 +1,5 @@
 // Othello board.
+use std::fmt;
 use std::fmt::Debug;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -21,6 +22,14 @@ pub enum Move{
         x: u8,
         y: u8,
     },
+}
+impl fmt::Display for Move{
+    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Move::Pass => write!(f, "Pass"),
+            Move::Put {x, y} => write!(f, "Put ({}, {})", x, y),
+        }
+    }
 }
 
 pub trait Board: Debug{
@@ -51,7 +60,6 @@ pub trait Board: Debug{
                     (-1, 0),
                     (-1, 1),
                     (0, -1),
-                    (0, 0),
                     (0, 1),
                     (1, -1),
                     (1, 0),
@@ -102,12 +110,39 @@ pub trait Board: Debug{
                     // 石とれてない
                     return Err(String::from("Cannot take pieces"));
                 }
-                // できたからturnを変える
+                // できたから諸々の処理
+                self.set(x, y, me);
                 let t = self.get_turn();
                 self.set_turn(flip_turn(t));
                 Ok(())
             }
         }
+    }
+    // Pretty print the board.
+    fn pretty_print(&self) -> String{
+        let mut result = String::new();
+        result.push_str("  A B C D E F G H\n");
+        for y in 0..8 {
+            result.push(char::from(0x31 + y));
+            result.push(' ');
+            for x in 0..8 {
+                let t = self.get(x, y);
+                match t {
+                    Tile::Empty => result.push(' '),
+                    Tile::Black => result.push('x'),
+                    Tile::White => result.push('o'),
+                };
+                if x < 7 {
+                    result.push('|');
+                }
+            }
+            if y < 7 {
+                result.push_str("\n --+-+-+-+-+-+-+-\n");
+            } else {
+                result.push('\n');
+            }
+        }
+        return result;
     }
 }
 
@@ -120,7 +155,7 @@ pub struct VecBoard {
 impl VecBoard {
     pub fn new() -> Self{
         let mut board = Vec::new();
-        for i in 0 .. 63 {
+        for i in 0 .. 64 {
             if i == 27 || i == 36 {
                 board.push(Tile::White);
             } else if i == 28 || i == 35 {
@@ -186,7 +221,7 @@ fn flip_turn(turn: Turn) -> Turn{
 }
 
 // 自分のと相手の
-fn turn_to_tile(turn: Turn) -> (Tile, Tile){
+pub fn turn_to_tile(turn: Turn) -> (Tile, Tile){
     match turn {
         Turn::Black => (Tile::Black, Tile::White),
         Turn::White => (Tile::White, Tile::Black),

@@ -123,6 +123,7 @@ impl Client{
                 // 動かす
                 return match board.apply_move(mv) {
                     Ok(()) => {
+                        trace!("\n{}", board.pretty_print());
                         // 次のターンへ
                         self.turn(board, strategy)
                     },
@@ -149,11 +150,14 @@ impl Client{
         let s = serialize_move(mv);
         // 送信
         writeln!(self.stream.get_mut(), "MOVE {}", s)?;
+        trace!("Move {}", mv);
 
         // 手元の盤面も更新
         if let Err(s) = board.apply_move(mv) {
-            warn!("Invalid move produced from our strategy");
+            warn!("Invalid move produced from our strategy: {}", s);
         }
+
+        trace!("\n{}", board.pretty_print());
 
         // ACKを待つ
         let mut buf = String::with_capacity(20);
@@ -194,7 +198,7 @@ fn parse_move(mv: &str) -> Option<Move>{
                 // 0 -- 7 に変換
                 let x = (c1 as u8) - 0x41;
                 let y = (c2 as u8) - 0x31;
-                if 0 <= x && x <= 7 && 0 <= y && y <= 7 {
+                if x <= 7 &&  y <= 7 {
                     return Some(Move::Put {
                         x,
                         y,
