@@ -114,7 +114,7 @@ impl Client{
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
 
-            return Ok(());
+            return self.wait_for_game(board, strategy);
         }
         if let Some(caps) = RMOVE.captures(&buf) {
             trace!("{}", buf.trim());
@@ -178,7 +178,7 @@ impl Client{
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
 
-            return Ok(());
+            return self.wait_for_game(board, strategy);
         }
         // 変なの来た
         debug!("{}", buf.trim());
