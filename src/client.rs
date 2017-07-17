@@ -83,21 +83,17 @@ impl Client{
             }
             self.time = time;
 
-            return self.turn(board, strategy);
+            if self.color == Turn::Black {
+                return self.my_turn(board, strategy, None);
+            } else {
+                return self.opponent_turn(board, strategy);
+            }
         }
 
         debug!("{}", buf.trim());
         warn!("Invalid command sent from the server");
 
         Ok(())
-    }
-    // 'turn' state
-    fn turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
-        if board.get_turn() == self.color {
-            self.my_turn(board, strategy)
-        } else {
-            self.opponent_turn(board, strategy)
-        }
     }
     // opponent's turn
     fn opponent_turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
@@ -125,7 +121,7 @@ impl Client{
                     Ok(()) => {
                         trace!("\n{}", board.pretty_print());
                         // 次のターンへ
-                        self.turn(board, strategy)
+                        self.my_turn(board, strategy, Some(mv))
                     },
                     Err(s) => {
                         // おかしい着手が来たぞ
@@ -142,10 +138,10 @@ impl Client{
         Ok(())
     }
     // my turn
-    fn my_turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+    fn my_turn(&mut self, board: &mut Board, strategy: &mut Strategy, last_move: Option<Move>) -> io::Result<()>{
         trace!("State: my_turn");
         // 自分の番なので手番をアレする
-        let mv = strategy.play(board, self.time);
+        let mv = strategy.play(board, last_move, self.time);
 
         let s = serialize_move(mv);
         // 送信
@@ -169,7 +165,7 @@ impl Client{
             let time: i32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap();
             self.time = time;
             // これは相手の番だ
-            return self.turn(board, strategy);
+            return self.opponent_turn(board, strategy);
         }
         if let Some(caps) = REND.captures(&buf) {
             trace!("{}", buf.trim());
