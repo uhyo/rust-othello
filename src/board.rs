@@ -39,6 +39,31 @@ pub trait Board: Debug {
     fn get_turn(&self) -> Turn;
     fn set_turn(&mut self, turn: Turn);
 
+    // count pieces.
+    fn count(&self, tile: Tile) -> u32 {
+        let mut result = 0;
+        for x in 0..8 {
+            for y in 0..8 {
+                if self.get(x, y) == tile {
+                    result += 1;
+                }
+            }
+        }
+        result
+    }
+    fn count_both(&self) -> u32 {
+        let mut result = 0;
+        for x in 0..8 {
+            for y in 0..8 {
+                if self.get(x, y) != Tile::Empty {
+                    result += 1;
+                }
+            }
+        }
+        result
+    }
+
+
     // apply a move to board.
     fn apply_move(&mut self, mv: Move) -> Result<(), String>{
         match mv {

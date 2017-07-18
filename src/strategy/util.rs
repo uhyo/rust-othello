@@ -1,5 +1,8 @@
 // Utilities for implementating strategies.
-use board::{Board, Tile, turn_to_tile};
+use std::iter::Iterator;
+use std::ops::Range;
+
+use board::{Board, Tile, Move, turn_to_tile};
 
 // この場所に石を置けるか?
 pub fn putable(board: &Board, x: u8, y: u8) -> bool{
@@ -53,3 +56,37 @@ pub fn putable(board: &Board, x: u8, y: u8) -> bool{
     return false;
 }
 
+pub struct MoveIter<'a> {
+    board: &'a Board,
+    iter: Range<u8>,
+}
+impl<'a> MoveIter<'a> {
+    fn new(board: &'a Board) -> MoveIter<'a> {
+        let iter = 0..64;
+        MoveIter {
+            board,
+            iter,
+        }
+    }
+}
+impl<'a> Iterator for MoveIter<'a> {
+    type Item = Move;
+    fn next(&mut self) -> Option<Move> {
+        while let Some(i) = self.iter.next() {
+            let x = i >> 3;
+            let y = i & 0x7;
+            // x, yにおけるか?
+            if putable(self.board, x, y) {
+                return Some(Move::Put {
+                    x,
+                    y,
+                });
+            }
+        }
+        return None;
+    }
+}
+
+pub fn iter_moves<'a>(board: &'a Board) -> MoveIter<'a> {
+    MoveIter::new(board)
+}

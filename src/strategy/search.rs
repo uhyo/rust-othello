@@ -1,9 +1,7 @@
 // Search by alphabeta
-use std::iter::Iterator;
-use std::ops::Range;
 
 use board::{Board, Tile, Move, Turn, flip_turn};
-use strategy::util::putable;
+use strategy::util::{putable, MoveIter, iter_moves};
 
 // 評価
 pub struct Evaluator {
@@ -293,37 +291,3 @@ fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alp
     return (evaluator.evaluate(board), mv.unwrap_or(Move::Pass));
 }
 
-struct MoveIter<'a> {
-    board: &'a Board,
-    iter: Range<u8>,
-}
-impl<'a> MoveIter<'a> {
-    fn new(board: &'a Board) -> MoveIter<'a> {
-        let iter = 0..64;
-        MoveIter {
-            board,
-            iter,
-        }
-    }
-}
-impl<'a> Iterator for MoveIter<'a> {
-    type Item = Move;
-    fn next(&mut self) -> Option<Move> {
-        while let Some(i) = self.iter.next() {
-            let x = i >> 3;
-            let y = i & 0x7;
-            // x, yにおけるか?
-            if putable(self.board, x, y) {
-                return Some(Move::Put {
-                    x,
-                    y,
-                });
-            }
-        }
-        return None;
-    }
-}
-
-fn iter_moves<'a>(board: &'a Board) -> MoveIter<'a> {
-    MoveIter::new(board)
-}

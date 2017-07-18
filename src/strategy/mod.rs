@@ -8,8 +8,11 @@ use board::{Board, Move};
 mod util;
 mod book;
 mod search;
+mod ending;
+
 use self::book::Book;
 use self::search::Searcher;
+use self::ending::EndingSearcher;
 
 
 pub trait Strategy {
@@ -73,18 +76,21 @@ pub struct MainStrategy {
     random: RandomStrategy,
     book: Book,
     searcher: Searcher,
+    ending: EndingSearcher,
 }
 impl MainStrategy {
     fn new () -> Self {
         let random = RandomStrategy::new();
         let book = Book::new();
         let searcher = Searcher::new();
+        let ending = EndingSearcher::new();
 
         MainStrategy {
             state: MainStrategyState::Book,
             random,
             book,
             searcher,
+            ending,
         }
     }
 }
