@@ -3,7 +3,7 @@ use rand;
 use rand::distributions;
 use rand::distributions::IndependentSample;
 
-use board::{Board, Tile, Move, turn_to_tile};
+use board::{Board, Move};
 
 mod util;
 mod book;

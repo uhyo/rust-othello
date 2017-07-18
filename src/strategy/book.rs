@@ -1,6 +1,10 @@
 // Reads book
+use std::cmp::min;
 use std::io::Read;
 use std::fs::File;
+use rand;
+use rand::distributions;
+use rand::distributions::IndependentSample;
 
 use board::Move;
 
@@ -77,8 +81,31 @@ impl Book {
                     last = lasto.unwrap();
                     self.index += 1;
                 }
-                // TODO: 候補のうちどれを選択するか? (今は最初のひとつ)
-                let next = first;
+                // 候補から選択
+                let next =
+                    if first == last {
+                        first
+                    } else {
+                        trace!("Selecting from {} candidates", last - first + 1);
+                        // ランダムに選ぶ
+                        // 最大でも10個 (XXX どれくらいがいい?)
+                        let num = min(10, last - first);
+                        let mut idx = first;
+                        let mut mx = 0u32;
+                        let ran = distributions::Range::new(first, last+1);
+                        let mut rng = rand::weak_rng();
+                        for _ in 0..num {
+                            let i = ran.ind_sample(&mut rng);
+                            // TODO もうちょっときれいに書けるのでは?
+                            let v = ((book[i * 64 + 60] as u32) << 24) | ((book[i * 64 + 61] as u32) << 16) | ((book[i * 64 + 62] as u32) << 8) | (book[i * 64 + 63] as u32);
+                            if mx < v {
+                                // これのほうが評価値がいい
+                                idx = i;
+                                mx = v;
+                            }
+                        }
+                        idx
+                    };
                 let ret = book[next * 64 + self.index];
                 if ret == 0xFF {
                     // 相手の番で終わる変な定石だ
