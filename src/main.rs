@@ -17,12 +17,12 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let opts = options::parse(args).unwrap_or_else(show_and_exit);
 
-    let mut board = board::make_board();
-    let mut strategy = strategy::make_strategy();
+    let board = board::make_board();
+    let strategy = strategy::make_strategy();
 
-    let mut client = Client::new(&opts).unwrap_or_else(show_err_and_exit);
+    let mut client = Client::new(&opts, board, strategy).unwrap_or_else(show_err_and_exit);
 
-    client.run(&mut board, &mut strategy).unwrap();
+    client.run().unwrap();
 
 }
 

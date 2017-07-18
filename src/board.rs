@@ -32,7 +32,7 @@ impl fmt::Display for Move{
     }
 }
 
-pub trait Board: Debug{
+pub trait Board: Debug {
     fn get(&self, x: u8, y: u8) -> Tile;
     fn set(&mut self, x: u8, y: u8, tile: Tile);
 
@@ -146,7 +146,7 @@ pub trait Board: Debug{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VecBoard {
     turn: Turn,
     board: Vec<Tile>,
@@ -213,7 +213,7 @@ pub fn make_board() -> VecBoard {
     VecBoard::new()
 }
 
-fn flip_turn(turn: Turn) -> Turn{
+pub fn flip_turn(turn: Turn) -> Turn{
     match turn {
         Turn::Black => Turn::White,
         Turn::White => Turn::Black,

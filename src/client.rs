@@ -25,17 +25,22 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct Client{
+pub struct Client<B, S>
+    where B: Board + Clone, S: Strategy {
     name: String,
     stream: BufReader<TcpStream>,
     // my color
     color: Turn,
     // remaining time
     time: i32,
+    // board
+    board: B,
+    // strategy
+    strategy: S,
 }
 
-impl Client{
-    pub fn new(opts: &options::Opts) -> io::Result<Self>{
+impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
+    pub fn new(opts: &options::Opts, board: B, strategy: S) -> io::Result<Self>{
         let name = opts.name.clone();
         let stream = TcpStream::connect((opts.host.as_ref(), opts.port))?;
         info!("Connected to the server");
@@ -46,20 +51,22 @@ impl Client{
             stream,
             color: Turn::Black,
             time: 0,
+            board,
+            strategy,
         })
     }
 
     // perform init 
-    pub fn run(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+    pub fn run(&mut self) -> io::Result<()> {
         // first, we send the `NAME` command
         writeln!(self.stream.get_mut(), "OPEN {}", self.name)?;
         debug!("Registered as client {}", self.name);
 
-        self.wait_for_game(board, strategy)
+        self.wait_for_game()
     }
 
     // 'waiting for game' state
-    fn wait_for_game(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+    fn wait_for_game(&mut self) -> io::Result<()> {
         trace!("State: wait_for_game");
         let mut buf = String::new();
         self.stream.read_line(&mut buf)?;
@@ -84,9 +91,9 @@ impl Client{
             self.time = time;
 
             if self.color == Turn::Black {
-                return self.my_turn(board, strategy, None);
+                return self.my_turn(None);
             } else {
-                return self.opponent_turn(board, strategy);
+                return self.opponent_turn();
             }
         }
 
@@ -96,7 +103,7 @@ impl Client{
         Ok(())
     }
     // opponent's turn
-    fn opponent_turn(&mut self, board: &mut Board, strategy: &mut Strategy) -> io::Result<()>{
+    fn opponent_turn(&mut self) -> io::Result<()>{
         trace!("State: opponent_turn");
         // 相手ターンなので通信を待機
         // TODO 相手ターンでも探索したらいいのでは?
@@ -110,18 +117,18 @@ impl Client{
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
 
-            return self.wait_for_game(board, strategy);
+            return self.wait_for_game();
         }
         if let Some(caps) = RMOVE.captures(&buf) {
             trace!("{}", buf.trim());
             let mv = caps.get(1).unwrap().as_str();
             if let Some(mv) = parse_move(&mv) {
                 // 動かす
-                return match board.apply_move(mv) {
+                return match self.board.apply_move(mv) {
                     Ok(()) => {
-                        trace!("\n{}", board.pretty_print());
+                        trace!("\n{}", self.board.pretty_print());
                         // 次のターンへ
-                        self.my_turn(board, strategy, Some(mv))
+                        self.my_turn(Some(mv))
                     },
                     Err(s) => {
                         // おかしい着手が来たぞ
@@ -138,10 +145,10 @@ impl Client{
         Ok(())
     }
     // my turn
-    fn my_turn(&mut self, board: &mut Board, strategy: &mut Strategy, last_move: Option<Move>) -> io::Result<()>{
+    fn my_turn(&mut self, last_move: Option<Move>) -> io::Result<()>{
         trace!("State: my_turn");
         // 自分の番なので手番をアレする
-        let mv = strategy.play(board, last_move, self.time);
+        let mv = self.strategy.play(&self.board, last_move, self.time);
 
         let s = serialize_move(mv);
         // 送信
@@ -149,11 +156,11 @@ impl Client{
         trace!("Move {}", mv);
 
         // 手元の盤面も更新
-        if let Err(s) = board.apply_move(mv) {
+        if let Err(s) = self.board.apply_move(mv) {
             warn!("Invalid move produced from our strategy: {}", s);
         }
 
-        trace!("\n{}", board.pretty_print());
+        trace!("\n{}", self.board.pretty_print());
 
         // ACKを待つ
         let mut buf = String::with_capacity(20);
@@ -165,7 +172,7 @@ impl Client{
             let time: i32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap();
             self.time = time;
             // これは相手の番だ
-            return self.opponent_turn(board, strategy);
+            return self.opponent_turn();
         }
         if let Some(caps) = REND.captures(&buf) {
             trace!("{}", buf.trim());
@@ -174,7 +181,7 @@ impl Client{
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
 
-            return self.wait_for_game(board, strategy);
+            return self.wait_for_game();
         }
         // 変なの来た
         debug!("{}", buf.trim());

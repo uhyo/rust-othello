@@ -1,5 +1,9 @@
 // Search by alphabeta
-use board::{Board, Tile};
+use std::iter::Iterator;
+use std::ops::Range;
+
+use board::{Board, Tile, Move, Turn, flip_turn};
+use strategy::util::putable;
 
 // 評価
 pub struct Evaluator {
@@ -210,4 +214,116 @@ impl Searcher {
             evaluator,
         }
     }
+    pub fn search<B>(&self, board: &B) -> Move
+        where B: Board + Clone {
+        // てきとう
+        let depth = 5;
+        let mycolor = board.get_turn();
+        let (_, mv) = alphabeta(&self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
+        mv
+    }
+}
+
+fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alpha: i32, beta: i32, mv: Option<Move>) -> (i32, Move) where B: Board + Clone {
+    if depth == 0 {
+        return (evaluator.evaluate(board), mv.unwrap_or(Move::Pass));
+    }
+    // 石をおける場所を列挙
+    let mut alpha = alpha;
+    let mut beta = beta;
+    if board.get_turn() == mycolor {
+        let mut flg = false;
+        let mut result_mv = mv.unwrap_or(Move::Pass);
+        for mv2 in iter_moves(board) {
+            flg = true;
+            let nmv = mv.or(Some(mv2));
+            // 次の盤面を生成
+            let mut board2 = board.clone();
+            board2.apply_move(mv2);
+
+            let (av, mv3) = alphabeta(evaluator, &board2, flip_turn(mycolor), depth-1, alpha, beta, nmv);
+            // 常に黒の評価値なので白だったら逆に
+            let av = if mycolor == Turn::Black {
+                av 
+            } else {
+                -av
+            };
+            if alpha <= av {
+                alpha = av;
+                result_mv = mv3;
+            }
+            if alpha >= beta {
+                // cut
+                return (beta, mv3);
+            }
+        }
+        if flg {
+            return (alpha, result_mv);
+        }
+    } else {
+        let mut flg = false;
+        let mut result_mv = mv.unwrap_or(Move::Pass);
+        for mv2 in iter_moves(board) {
+            flg = true;
+            let nmv = mv.or(Some(mv2));
+            let mut board2 = board.clone();
+            board2.apply_move(mv2);
+
+            let (bv, mv3) = alphabeta(evaluator, &board2, flip_turn(mycolor), depth-1, alpha, beta, nmv);
+            // 常に黒の評価値なので白だったら逆に
+            let bv = if mycolor == Turn::Black {
+                bv 
+            } else {
+                -bv
+            };
+            if bv <= beta {
+                beta = bv;
+                result_mv = mv3;
+            }
+            if alpha >= beta {
+                // cut
+                return (alpha, mv3);
+            }
+        }
+        if flg {
+            return (beta, result_mv);
+        }
+    }
+    // 子とかなかった
+    return (evaluator.evaluate(board), mv.unwrap_or(Move::Pass));
+}
+
+struct MoveIter<'a> {
+    board: &'a Board,
+    iter: Range<u8>,
+}
+impl<'a> MoveIter<'a> {
+    fn new(board: &'a Board) -> MoveIter<'a> {
+        let iter = 0..64;
+        MoveIter {
+            board,
+            iter,
+        }
+    }
+}
+impl<'a> Iterator for MoveIter<'a> {
+    type Item = Move;
+    fn next(&mut self) -> Option<Move> {
+        while let Some(i) = self.iter.next() {
+            let x = i >> 3;
+            let y = i & 0x7;
+            // x, yにおけるか?
+            if putable(self.board, x, y) {
+                return Some(Move::Put {
+                    x,
+                    y,
+                });
+            }
+        }
+        return None;
+    }
+}
+
+fn iter_moves<'a>(board: &'a Board) -> MoveIter<'a> {
+    MoveIter::new(board)
 }

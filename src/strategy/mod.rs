@@ -13,7 +13,7 @@ use self::search::Searcher;
 
 
 pub trait Strategy {
-    fn play(&mut self, board: &Board, last_move: Option<Move>, time: i32) -> Move;
+    fn play<B>(&mut self, board: &B, last_move: Option<Move>, time: i32) -> Move where B: Board + Clone;
 }
 
 pub struct RandomStrategy {
@@ -45,7 +45,8 @@ impl RandomStrategy{
 }
 
 impl Strategy for RandomStrategy{
-    fn play(&mut self, board: &Board, _last_move: Option<Move>, _time: i32) -> Move{
+    fn play<B>(&mut self, board: &B, _last_move: Option<Move>, _time: i32) -> Move
+        where B: Board + Clone {
         let mut points = self.points.iter();
         // 候補を順番に試す
         while let Some(&(x, y)) = points.next() {
@@ -64,6 +65,7 @@ impl Strategy for RandomStrategy{
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum MainStrategyState {
     Book,
+    Search,
     Random,
 }
 pub struct MainStrategy {
@@ -87,28 +89,32 @@ impl MainStrategy {
     }
 }
 impl Strategy for MainStrategy {
-    fn play(&mut self, board: &Board, last_move: Option<Move>, time: i32) -> Move{
+    fn play<B>(&mut self, board: &B, last_move: Option<Move>, time: i32) -> Move 
+        where B: Board + Clone {
         if self.state == MainStrategyState::Book {
             match self.book.gen(last_move) {
                 None => {
-                    self.state = MainStrategyState::Random;
+                    self.state = MainStrategyState::Search;
                 },
                 Some((mv2, flg)) => {
                     if !flg {
                         // もう定石が無い
-                        self.state = MainStrategyState::Random;
+                        self.state = MainStrategyState::Search;
                     }
                     trace!("Using opening book");
                     return mv2;
                 }
             }
+        } else if self.state == MainStrategyState::Search {
+            trace!("Using searching strategy");
+            return self.searcher.search(board);
         }
         trace!("Using random strategy");
         return self.random.play(board, last_move, time);
     }
 }
 
-pub fn make_strategy() -> MainStrategy{
+pub fn make_strategy() -> MainStrategy {
     MainStrategy::new()
 }
 
