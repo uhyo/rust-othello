@@ -69,6 +69,7 @@ impl Strategy for RandomStrategy{
 pub enum MainStrategyState {
     Book,
     Search,
+    Ending,
     Random,
 }
 pub struct MainStrategy {
@@ -111,9 +112,19 @@ impl Strategy for MainStrategy {
                     return mv2;
                 }
             }
-        } else if self.state == MainStrategyState::Search {
-            trace!("Using searching strategy");
-            return self.searcher.search(board);
+        }
+        if self.state == MainStrategyState::Search {
+            if board.count_both() >= 54 {
+                // 最後10手を読み切る
+                self.state = MainStrategyState::Ending;
+            } else {
+                trace!("Using searching strategy");
+                return self.searcher.search(board);
+            }
+        }
+        if self.state == MainStrategyState::Ending {
+            trace!("Using ending strategy");
+            return self.ending.search(board, board.get_turn(), last_move.unwrap());
         }
         trace!("Using random strategy");
         return self.random.play(board, last_move, time);

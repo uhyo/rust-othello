@@ -56,6 +56,7 @@ pub fn putable(board: &Board, x: u8, y: u8) -> bool{
     return false;
 }
 
+// iterは左上から順番に返すような感じがする
 pub struct MoveIter<'a> {
     board: &'a Board,
     iter: Range<u8>,

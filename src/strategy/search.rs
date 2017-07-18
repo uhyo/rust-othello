@@ -215,7 +215,7 @@ impl Searcher {
     pub fn search<B>(&self, board: &B) -> Move
         where B: Board + Clone {
         // てきとう
-        let depth = 5;
+        let depth = 6;
         let mycolor = board.get_turn();
         let (_, mv) = alphabeta(&self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
         mv

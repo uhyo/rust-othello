@@ -15,7 +15,7 @@ pub enum Turn{
     White,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Move{
     Pass,
     Put {
