@@ -7,7 +7,9 @@ use board::{Board, Move};
 
 mod util;
 mod book;
+mod search;
 use self::book::Book;
+use self::search::Searcher;
 
 
 pub trait Strategy {
@@ -68,16 +70,19 @@ pub struct MainStrategy {
     state: MainStrategyState,
     random: RandomStrategy,
     book: Book,
+    searcher: Searcher,
 }
 impl MainStrategy {
     fn new () -> Self {
         let random = RandomStrategy::new();
         let book = Book::new();
+        let searcher = Searcher::new();
 
         MainStrategy {
             state: MainStrategyState::Book,
             random,
             book,
+            searcher,
         }
     }
 }
