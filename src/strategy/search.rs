@@ -29,7 +29,7 @@ impl Evaluator {
         result += self.eval_fixed(board);
         result
     }
-    fn eval_place(x: u8, y: u8) -> i32 {
+    fn eval_place(&self, x: u8, y: u8) -> i32 {
         // 場所の評価
         // 参考: http://uguisu.skr.jp/othello/5-1.html
         lazy_static! {
@@ -119,20 +119,22 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
         changed = false;
         for x in 1..7 {
             for y in 1..7 {
+                let xi32 = x as i32;
+                let yi32 = y as i32;
                 if fixed & idx(x, y) == 0 && board.get(x, y) == color {
                     // 確定石チェックを走らせる
                     let mut ok = true;
                     'dloop: for &(dx, dy) in DVEC.iter() {
                         // 各方向について
-                        let i1 = idx(x + dx, y + dy);
-                        let i2 = idx(x - dx, y - dy);
+                        let i1 = idx((xi32 + dx) as u8, (yi32 + dy) as u8);
+                        let i2 = idx((xi32 - dx) as u8, (yi32 - dy) as u8);
                         if fixed & (i1 | i2) != 0 {
                             // 片方が確定石である: OK
                             continue;
                         }
                         // 両方向にfilled-rowチェックを走らせる
-                        let mut xx = (x as i32) + dx;
-                        let mut yy = (y as i32) + dy;
+                        let mut xx = xi32 + dx;
+                        let mut yy = yi32 + dy;
                         while 0 <= xx && xx <= 7 && 0 <= yy && yy <= 7 {
                             if board.get(xx as u8, yy as u8) == Tile::Empty {
                                 // だめ
@@ -142,8 +144,8 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
                             xx += dx;
                             yy += dy;
                         }
-                        xx = (x as i32) - dx;
-                        yy = (y as i32) - dy;
+                        xx = xi32 - dx;
+                        yy = yi32 - dy;
                         while 0 <= xx && xx <= 7 && 0 <= yy && yy <= 7 {
                             if board.get(xx as u8, yy as u8) == Tile::Empty {
                                 // だめ
@@ -157,7 +159,7 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
                     }
                     if ok {
                         // これは確定石だ
-                        field |= idx(x, y);
+                        fixed |= idx(x, y);
                         changed = true;
                     }
                 }
@@ -202,7 +204,7 @@ pub struct Searcher {
     evaluator: Evaluator,
 }
 impl Searcher {
-    fn new() -> Searcher {
+    pub fn new() -> Searcher {
         let evaluator = Evaluator::new();
         Searcher {
             evaluator,
