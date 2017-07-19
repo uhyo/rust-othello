@@ -1,7 +1,7 @@
 // Search by alphabeta
 
 use board::{Board, Tile, Move, Turn, flip_turn};
-use strategy::util::{putable, MoveIter, iter_moves};
+use strategy::util::iter_moves;
 
 // 評価
 pub struct Evaluator {
@@ -28,7 +28,7 @@ impl Evaluator {
             }
         }
         // 確定石の評価
-        result += self.eval_fixed(board);
+        result += self.eval_stable(board);
         result
     }
     fn eval_place(&self, x: u8, y: u8) -> i32 {
@@ -49,9 +49,9 @@ impl Evaluator {
         let idx = ((y as usize) << 3) | (x as usize);
         PVALUE[idx]
     }
-    fn eval_fixed(&self, board: &Board) -> i32 {
+    fn eval_stable(&self, board: &Board) -> i32 {
         // 係数はてきとう
-        return 4 * fixed_check(board, Tile::Black) - 4 * fixed_check(board, Tile::White);
+        return 4 * stable_check(board, Tile::Black) - 4 * stable_check(board, Tile::White);
     }
 }
 
@@ -61,7 +61,7 @@ fn idx(x: u8, y: u8) -> u64 {
 }
 
 // 色ごとに
-fn fixed_check(board: &Board, color: Tile) -> i32 {
+pub fn stable_check(board: &Board, color: Tile) -> i32 {
     let mut fixed = 0u64; // ...321076543210
 
     // 外周
@@ -99,13 +99,55 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
     }
     let mut xx = 7;
     while x < xx {
-        let t = board.get(xx, 0);
+        let t = board.get(xx, 7);
         if t == color {
-            fixed |= idx(xx, 0);
+            fixed |= idx(xx, 7);
         } else {
             break;
         }
         xx -= 1;
+    }
+    // 縦 x = 0
+    let mut y = 0;
+    while y < 7 {
+        let t = board.get(0, y);
+        if t == color {
+            fixed |= idx(0, y);
+        } else {
+            break;
+        }
+        y += 1;
+    }
+    let mut yy = 7;
+    while y < yy {
+        let t = board.get(0, yy);
+        if t == color {
+            fixed |= idx(0, yy);
+        } else {
+            break;
+        }
+        yy -= 1;
+    }
+    // x = 7
+    y = 0;
+    while y < 7 {
+        let t = board.get(7, y);
+        if t == color {
+            fixed |= idx(7, y);
+        } else {
+            break;
+        }
+        y += 1;
+    }
+    yy = 7;
+    while y < yy {
+        let t = board.get(7, yy);
+        if t == color {
+            fixed |= idx(7, yy);
+        } else {
+            break;
+        }
+        yy -= 1;
     }
     // 内側
     let mut changed = true;
@@ -118,6 +160,7 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
         ];
     }
     while changed {
+        println!("Loop!");
         changed = false;
         for x in 1..7 {
             for y in 1..7 {
@@ -161,6 +204,7 @@ fn fixed_check(board: &Board, color: Tile) -> i32 {
                     }
                     if ok {
                         // これは確定石だ
+                        println!("({}, {}) is stable!", x, y);
                         fixed |= idx(x, y);
                         changed = true;
                     }
@@ -238,7 +282,7 @@ fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alp
             let nmv = mv.or(Some(mv2));
             // 次の盤面を生成
             let mut board2 = board.clone();
-            board2.apply_move(mv2);
+            board2.apply_move(mv2).unwrap();
 
             let (av, mv3) = alphabeta(evaluator, &board2, flip_turn(mycolor), depth-1, alpha, beta, nmv);
             // 常に黒の評価値なので白だったら逆に
@@ -266,7 +310,7 @@ fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alp
             flg = true;
             let nmv = mv.or(Some(mv2));
             let mut board2 = board.clone();
-            board2.apply_move(mv2);
+            board2.apply_move(mv2).unwrap();
 
             let (bv, mv3) = alphabeta(evaluator, &board2, flip_turn(mycolor), depth-1, alpha, beta, nmv);
             // 常に黒の評価値なので白だったら逆に

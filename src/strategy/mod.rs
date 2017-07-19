@@ -5,10 +5,10 @@ use rand::distributions::IndependentSample;
 
 use board::{Board, Move};
 
-mod util;
-mod book;
-mod search;
-mod ending;
+pub mod util;
+pub mod book;
+pub mod search;
+pub mod ending;
 
 use self::book::Book;
 use self::search::Searcher;

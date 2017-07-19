@@ -1,7 +1,7 @@
 // Seach for ending
 use std::cmp::{min, max, Ordering};
-use board::{Board, Tile, Move, Turn, turn_to_tile};
-use strategy::util::{putable, MoveIter, iter_moves};
+use board::{Board, Move, Turn, turn_to_tile};
+use strategy::util::iter_moves;
 
 pub struct GameTree {
     // 現在のポジションの最大値と最小値
@@ -70,10 +70,10 @@ fn search<B>(board: &B, mycolor: Turn, one_pass: bool) -> GameTree where B: Boar
     for mv in iter_moves(board) {
         flg = true;
 
-        if let Move::Put {x, y} = mv {
+        if let Move::Put {x: _, y: _} = mv {
             // 次の盤面
             let mut board2 = board.clone();
-            board2.apply_move(mv);
+            board2.apply_move(mv).unwrap();
             let t = search(&mut board2, mycolor, false);
             rmin = min(rmin, t.min);
             rmax = max(rmax, t.max);
@@ -96,7 +96,7 @@ fn search<B>(board: &B, mycolor: Turn, one_pass: bool) -> GameTree where B: Boar
         } else {
             // Passで探索
             let mut board2 = board.clone();
-            board2.apply_move(Move::Pass);
+            board2.apply_move(Move::Pass).unwrap();
             let t = search(&mut board2, mycolor, true);
             rmin = t.min;
             rmax = t.max;
