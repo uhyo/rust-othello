@@ -120,7 +120,7 @@ impl Strategy for MainStrategy {
             }
         }
         if self.state == MainStrategyState::Search {
-            if board.count_both() >= 54 {
+            if board.count_both() >= 52 {
                 // 最後10手を読み切る
                 self.state = MainStrategyState::Ending;
             } else {

@@ -78,6 +78,10 @@ fn search<B>(board: &B, mycolor: Turn, one_pass: bool) -> GameTree where B: Boar
             rmin = min(rmin, t.min);
             rmax = max(rmax, t.max);
             moves.push((mv, t));
+            if rmin == Ordering::Greater && board.get_turn() == mycolor {
+                // いいのを見つけた（これでいいじゃん）
+                break;
+            }
         }
     }
     // 有利なものを先頭へ
