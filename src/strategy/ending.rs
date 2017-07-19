@@ -32,6 +32,9 @@ impl EndingSearcher {
             table: None,
         }
     }
+    pub fn reset(&mut self) {
+        self.table = None;
+    }
     pub fn search<B>(&mut self, board: &B, mycolor: Turn, last_move: Move) -> Move where B: Board + Clone {
         let t = self.table.take();
         let table =

@@ -33,6 +33,7 @@ impl fmt::Display for Move{
 }
 
 pub trait Board: Debug {
+    fn reset(&mut self);
     fn get(&self, x: u8, y: u8) -> Tile;
     fn set(&mut self, x: u8, y: u8, tile: Tile);
 
@@ -197,6 +198,19 @@ impl VecBoard {
     }
 }
 impl Board for VecBoard{
+    fn reset(&mut self) {
+        self.board.clear();
+        for i in 0 .. 64 {
+            if i == 27 || i == 36 {
+                self.board.push(Tile::White);
+            } else if i == 28 || i == 35 {
+                self.board.push(Tile::Black);
+            } else {
+                self.board.push(Tile::Empty);
+            }
+        }
+        self.turn = Turn::Black;
+    }
     fn get(&self, x: u8, y: u8) -> Tile{
         let pos = (y * 8 + x) as usize;
         self.board[pos]

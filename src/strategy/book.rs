@@ -43,6 +43,12 @@ impl Book {
             transform,
         }
     }
+    pub fn reset(&mut self) {
+        self.first = 0;
+        self.last = (self.book.len() as usize)/64 - 1;
+        self.index = 0;
+        self.opening = true;
+    }
     pub fn gen(&mut self, last_move: Option<Move>) -> Option<(Move, bool)> {
         match last_move {
             None => {

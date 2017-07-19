@@ -89,6 +89,8 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
                 self.color = Turn::White;
             }
             self.time = time;
+            self.board.reset();
+            self.strategy.reset();
 
             if self.color == Turn::Black {
                 return self.my_turn(None);

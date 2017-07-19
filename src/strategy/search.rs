@@ -220,6 +220,7 @@ impl Searcher {
         let (_, mv) = alphabeta(&self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
         mv
     }
+    pub fn reset(&mut self) { }
 }
 
 fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alpha: i32, beta: i32, mv: Option<Move>) -> (i32, Move) where B: Board + Clone {
