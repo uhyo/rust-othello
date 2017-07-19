@@ -155,7 +155,7 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
         let s = serialize_move(mv);
         // 送信
         writeln!(self.stream.get_mut(), "MOVE {}", s)?;
-        trace!("Move {}", mv);
+        trace!("MOVE {} ({})", s, mv);
 
         // 手元の盤面も更新
         if let Err(s) = self.board.apply_move(mv) {

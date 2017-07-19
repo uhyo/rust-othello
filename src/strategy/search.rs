@@ -5,16 +5,24 @@ use strategy::util::iter_moves;
 
 // 評価
 pub struct Evaluator {
-
+    fixed_cache_black: u64,
+    fixed_cache_white: u64,
 }
 
 impl Evaluator {
     fn new() -> Evaluator {
-        Evaluator {}
+        Evaluator {
+            fixed_cache_black: 0,
+            fixed_cache_white: 0,
+        }
+    }
+    fn reset(&mut self) {
+        self.fixed_cache_black = 0;
+        self.fixed_cache_white = 0;
     }
     // てきとうな評価関数
     // Blackに対してアレする
-    fn evaluate(&self, board: &Board) -> i32 {
+    fn evaluate(&mut self, board: &Board) -> i32 {
         let mut result = 0;
         // 石ごとの評価
         for x in 0..8 {
@@ -49,9 +57,13 @@ impl Evaluator {
         let idx = ((y as usize) << 3) | (x as usize);
         PVALUE[idx]
     }
-    fn eval_stable(&self, board: &Board) -> i32 {
+    fn eval_stable(&mut self, board: &Board) -> i32 {
         // 係数はてきとう
-        return 4 * stable_check(board, Tile::Black) - 4 * stable_check(board, Tile::White);
+        let (fb2, bc) = stable_check(board, Tile::Black, self.fixed_cache_black);
+        let (fw2, wc) = stable_check(board, Tile::White, self.fixed_cache_white);
+        self.fixed_cache_black = fb2;
+        self.fixed_cache_white = fw2;
+        4 * (bc as i32) - 4 * (wc as i32)
     }
 }
 
@@ -61,8 +73,8 @@ fn idx(x: u8, y: u8) -> u64 {
 }
 
 // 色ごとに
-pub fn stable_check(board: &Board, color: Tile) -> i32 {
-    let mut fixed = 0u64; // ...321076543210
+pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
+    let mut fixed = fixedcache; // ...321076543210
 
     // 外周
     // y=0
@@ -160,19 +172,31 @@ pub fn stable_check(board: &Board, color: Tile) -> i32 {
         ];
     }
     while changed {
-        println!("Loop!");
         changed = false;
-        for x in 1..7 {
-            for y in 1..7 {
+        for x in 0..8 {
+            'ploop: for y in 0..8 {
                 let xi32 = x as i32;
                 let yi32 = y as i32;
                 if fixed & idx(x, y) == 0 && board.get(x, y) == color {
                     // 確定石チェックを走らせる
-                    let mut ok = true;
                     'dloop: for &(dx, dy) in DVEC.iter() {
                         // 各方向について
-                        let i1 = idx((xi32 + dx) as u8, (yi32 + dy) as u8);
-                        let i2 = idx((xi32 - dx) as u8, (yi32 - dy) as u8);
+                        let xdi = xi32 + dx;
+                        let ydi = yi32 + dy;
+                        let xdi2 = xi32 - dx;
+                        let ydi2 = yi32 - dy;
+                        let i1 =
+                            if 0 <= xdi && xdi <= 7 && 0 <= ydi && ydi <= 7 {
+                                idx(xdi as u8, ydi as u8)
+                            }else{
+                                0xffffffff
+                            };
+                        let i2 =
+                            if 0 <= xdi2 && xdi2 <= 7 && 0 <= ydi2 && ydi2 <= 7 {
+                                idx(xdi2 as u8, ydi2 as u8)
+                            }else{
+                                0xffffffff
+                            };
                         if fixed & (i1 | i2) != 0 {
                             // 片方が確定石である: OK
                             continue;
@@ -183,8 +207,7 @@ pub fn stable_check(board: &Board, color: Tile) -> i32 {
                         while 0 <= xx && xx <= 7 && 0 <= yy && yy <= 7 {
                             if board.get(xx as u8, yy as u8) == Tile::Empty {
                                 // だめ
-                                ok = false;
-                                break 'dloop;
+                                continue 'ploop;
                             }
                             xx += dx;
                             yy += dy;
@@ -194,26 +217,23 @@ pub fn stable_check(board: &Board, color: Tile) -> i32 {
                         while 0 <= xx && xx <= 7 && 0 <= yy && yy <= 7 {
                             if board.get(xx as u8, yy as u8) == Tile::Empty {
                                 // だめ
-                                ok = false;
-                                break 'dloop;
+                                continue 'ploop;
                             }
                             xx -= dx;
                             yy -= dy;
                         }
                         // filled-rowチェックを生き残った
                     }
-                    if ok {
-                        // これは確定石だ
-                        println!("({}, {}) is stable!", x, y);
-                        fixed |= idx(x, y);
-                        changed = true;
-                    }
+                    // これは確定石だ
+                    // println!("({}, {}) is stable!", x, y);
+                    fixed |= idx(x, y);
+                    changed = true;
                 }
             }
         }
     }
     // 結果を返す
-    return fixed.count_ones() as i32;
+    return (fixed, fixed.count_ones());
     /*
     let mut st = 1;
     while st < 4 {
@@ -256,18 +276,20 @@ impl Searcher {
             evaluator,
         }
     }
-    pub fn search<B>(&self, board: &B) -> Move
+    pub fn search<B>(&mut self, board: &B) -> Move
         where B: Board + Clone {
         // てきとう
         let depth = 6;
         let mycolor = board.get_turn();
-        let (_, mv) = alphabeta(&self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
+        let (_, mv) = alphabeta(&mut self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
         mv
     }
-    pub fn reset(&mut self) { }
+    pub fn reset(&mut self) {
+        self.evaluator.reset();
+    }
 }
 
-fn alphabeta<B>(evaluator: &Evaluator, board: &B, mycolor: Turn, depth: u32, alpha: i32, beta: i32, mv: Option<Move>) -> (i32, Move) where B: Board + Clone {
+fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32, alpha: i32, beta: i32, mv: Option<Move>) -> (i32, Move) where B: Board + Clone {
     if depth == 0 {
         return (evaluator.evaluate(board), mv.unwrap_or(Move::Pass));
     }

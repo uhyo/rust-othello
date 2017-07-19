@@ -25,7 +25,7 @@ mod test {
             board.set(2, 0, Tile::Black);
             board.set(6, 0, Tile::Black);
             board.set(7, 0, Tile::Black);
-            assert_eq!(stable_check(&board, Tile::Black), 5);
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 5);
         }
         #[test]
         fn edges_updown() {
@@ -45,7 +45,7 @@ mod test {
             board.set(5, 7, Tile::Black);
             board.set(6, 7, Tile::Black);
             board.set(7, 7, Tile::Black);
-            assert_eq!(stable_check(&board, Tile::Black), 10);
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 10);
         }
         #[test]
         fn edges_leftright() {
@@ -63,12 +63,12 @@ mod test {
             board.set(7, 2, Tile::Black);
             board.set(7, 3, Tile::Black);
 
-            assert_eq!(stable_check(&board, Tile::Black), 10);
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 10);
         }
         #[test]
         fn inner_stones() {
             let b = Tile::Black;
-            let w = Tile::Black;
+            let w = Tile::White;
             let e = Tile::Empty;
             let board = make_board(vec![
                 b, b, b, b, w, b, b, b,
@@ -81,7 +81,43 @@ mod test {
                 e, e, e, e, e, e, e, e,
             ]);
 
-            assert_eq!(stable_check(&board, Tile::Black), 12);
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 12);
+        }
+        #[test]
+        fn fulfilled_stones() {
+            let b = Tile::Black;
+            let w = Tile::White;
+            let e = Tile::Empty;
+            let board = make_board(vec![
+                b, b, b, b, e, w, b, b,
+                b, b, b, e, e, e, b, w,
+                b, b, e, e, e, e, e, b,
+                w, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+            ]);
+
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 11);
+        }
+        #[test]
+        fn edge_fuifilled() {
+            let b = Tile::Black;
+            let w = Tile::White;
+            let e = Tile::Empty;
+            let board = make_board(vec![
+                b, b, w, w, b, w, w, b,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+                e, e, e, e, e, e, e, e,
+            ]);
+
+            assert_eq!(stable_check(&board, Tile::Black, 0).1, 4);
         }
 
 
