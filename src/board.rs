@@ -229,27 +229,81 @@ impl Board for VecBoard{
 }
 
 
-/*
-struct BitBoard {
-    // left to right, then up to down
+#[derive(Debug, Clone)]
+pub struct BitBoard {
+    turn: Turn,
     black: u64,
     white: u64,
 }
 impl BitBoard {
     pub fn new() -> Self{
+        // 左下 to 右上
         let black = 0x00_00_00_08_10_00_00_00u64;
         let white = 0x00_00_00_10_08_00_00_00u64;
         
         BitBoard {
+            turn: Turn::Black,
             black,
             white,
         }
     }
 }
-*/
+impl Board for BitBoard {
+    fn reset(&mut self) {
+        self.turn = Turn::Black;
+        self.black = 0x00_00_00_08_10_00_00_00u64;
+        self.white = 0x00_00_00_10_08_00_00_00u64;
+    }
+    fn get(&self, x: u8, y: u8) -> Tile {
+        let i = idx(x, y);
+        if self.black & i != 0 {
+            return Tile::Black;
+        } else if self.white & i != 0 {
+            return Tile::White;
+        } else {
+            return Tile::Empty;
+        }
+    }
+    fn set(&mut self, x: u8, y: u8, tile: Tile) {
+        let i = idx(x, y);
+        match tile {
+            Tile::Black => {
+                self.black |= i;
+                self.white &= !i;
+            },
+            Tile::White => {
+                self.white |= i;
+                self.black &= !i;
+            },
+            Tile::Empty => {
+                self.black &= !i;
+                self.white &= !i;
+            },
+        }
+    }
+    fn get_turn(&self) -> Turn {
+        self.turn
+    }
+    fn set_turn(&mut self, turn: Turn) {
+        self.turn = turn;
+    }
+    fn count(&self, tile: Tile) -> u32 {
+        match tile {
+            Tile::Black => self.black.count_ones(),
+            Tile::White => self.white.count_ones(),
+            Tile::Empty => (self.black | self.white).count_zeros(),
+        }
+    }
+    fn count_both(&self) -> u32 {
+        (self.black | self.white).count_ones()
+    }
+}
+fn idx(x: u8, y: u8) -> u64 {
+    1 << ((x as u64) | ((y as u64) << 3))
+}
 
-pub fn make_board() -> VecBoard {
-    VecBoard::new()
+pub fn make_board() -> BitBoard {
+    BitBoard::new()
 }
 
 pub fn flip_turn(turn: Turn) -> Turn{

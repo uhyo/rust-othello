@@ -14,7 +14,7 @@ mod test {
 
     mod stable_check {
         use strategy::search::stable_check;
-        use board::{Board, VecBoard, Tile};
+        use board::{Board, VecBoard, BitBoard, Tile};
 
         #[test]
         fn edges_up() {
@@ -29,7 +29,7 @@ mod test {
         }
         #[test]
         fn edges_updown() {
-            let mut board = VecBoard::new();
+            let mut board = BitBoard::new();
             // boardを初期化
             board.set(0, 0, Tile::Black);
             board.set(1, 0, Tile::Black);
@@ -122,9 +122,9 @@ mod test {
 
 
 
-        fn make_board(v: Vec<Tile>) -> VecBoard {
+        fn make_board(v: Vec<Tile>) -> BitBoard {
             // vecからBoardをつくる
-            let mut board = VecBoard::new();
+            let mut board = BitBoard::new();
             for x in 0..8 {
                 for y in 0..8 {
                     let idx = y * 8 + x;
