@@ -21,7 +21,7 @@ lazy_static! {
     // MOVEコマンド
     static ref RMOVE: Regex = Regex::new(r"^MOVE (PASS|[A-H][1-8])").unwrap();
     // ACKコマンド
-    static ref RACK: Regex = Regex::new(r"^ACK (\d+)").unwrap();
+    static ref RACK: Regex = Regex::new(r"^ACK (-?\d+)").unwrap();
 }
 
 #[derive(Debug)]
