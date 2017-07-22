@@ -104,7 +104,7 @@ impl Book {
                             let i = ran.ind_sample(&mut rng);
                             // TODO もうちょっときれいに書けるのでは?
                             let v = ((book[i * 64 + 60] as u32) << 24) | ((book[i * 64 + 61] as u32) << 16) | ((book[i * 64 + 62] as u32) << 8) | (book[i * 64 + 63] as u32);
-                            if mx < v {
+                            if mx <= v {
                                 // これのほうが評価値がいい
                                 idx = i;
                                 mx = v;
