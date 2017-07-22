@@ -2,15 +2,15 @@
 use std::iter::Iterator;
 use std::ops::Range;
 
-use board::{Board, Tile, Move, turn_to_tile};
+use board::{Board, Tile, Turn, Move, turn_to_tile};
 
 // この場所に石を置けるか?
-pub fn putable(board: &Board, x: u8, y: u8) -> bool{
+pub fn putable(board: &Board, x: u8, y: u8, turn: Turn) -> bool {
     if board.get(x, y) != Tile::Empty {
         // 置けない
         return false;
     }
-    let (me, op) = turn_to_tile(board.get_turn());
+    let (me, op) = turn_to_tile(turn);
     lazy_static! {
         static ref DVEC: Vec<(i32, i32)> = vec![
             (-1, -1),
@@ -59,13 +59,15 @@ pub fn putable(board: &Board, x: u8, y: u8) -> bool{
 // iterは左上から順番に返すような感じがする
 pub struct MoveIter<'a> {
     board: &'a Board,
+    turn: Turn,
     iter: Range<u8>,
 }
 impl<'a> MoveIter<'a> {
-    fn new(board: &'a Board) -> MoveIter<'a> {
+    fn new(board: &'a Board, turn: Turn) -> MoveIter<'a> {
         let iter = 0..64;
         MoveIter {
             board,
+            turn,
             iter,
         }
     }
@@ -77,7 +79,7 @@ impl<'a> Iterator for MoveIter<'a> {
             let x = i >> 3;
             let y = i & 0x7;
             // x, yにおけるか?
-            if putable(self.board, x, y) {
+            if putable(self.board, x, y, self.turn) {
                 return Some(Move::Put {
                     x,
                     y,
@@ -88,6 +90,6 @@ impl<'a> Iterator for MoveIter<'a> {
     }
 }
 
-pub fn iter_moves<'a>(board: &'a Board) -> MoveIter<'a> {
-    MoveIter::new(board)
+pub fn iter_moves<'a>(board: &'a Board, turn: Turn) -> MoveIter<'a> {
+    MoveIter::new(board, turn)
 }

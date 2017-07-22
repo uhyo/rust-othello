@@ -57,7 +57,7 @@ impl Strategy for RandomStrategy{
         let mut points = self.points.iter();
         // 候補を順番に試す
         while let Some(&(x, y)) = points.next() {
-            if util::putable(board, x, y) {
+            if util::putable(board, x, y, board.get_turn()) {
                 return Move::Put {
                     x,
                     y,

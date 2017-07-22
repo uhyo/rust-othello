@@ -67,7 +67,7 @@ fn search<B>(board: &B, mycolor: Turn, one_pass: bool) -> GameTree where B: Boar
     let mut rmin = Ordering::Greater;
     let mut rmax = Ordering::Less;
     let mut moves = Vec::new();
-    for mv in iter_moves(board) {
+    for mv in iter_moves(board, board.get_turn()) {
         flg = true;
 
         if let Move::Put {x: _, y: _} = mv {

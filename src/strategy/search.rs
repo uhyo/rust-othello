@@ -1,7 +1,7 @@
 // Search by alphabeta
 
 use board::{Board, Tile, Move, Turn};
-use strategy::util::iter_moves;
+use strategy::util::{iter_moves};
 
 // 評価
 pub struct Evaluator {
@@ -37,6 +37,8 @@ impl Evaluator {
         }
         // 確定石の評価
         result += self.eval_stable(board);
+        // 置ける場所の評価
+        result += self.eval_putnum(board);
         result
     }
     fn eval_place(&self, x: u8, y: u8) -> i32 {
@@ -44,14 +46,14 @@ impl Evaluator {
         // 参考: http://uguisu.skr.jp/othello/5-1.html
         lazy_static! {
             static ref PVALUE: Vec<i32> = vec![
-                30 , -12,  0, -1, -1,  0, -12,  30,
+                80 , -12, 15, 10, 10, 15, -12,  80,
                 -12, -15, -3, -3, -3, -3, -15, -12,
-                  0,  -3,  0, -1, -1,  0,  -3,   0,
-                 -1,  -3, -1, -1, -1, -1,  -3,  -1,
-                 -1,  -3, -1, -1, -1, -1,  -3,  -1,
-                  0,  -3,  0, -1, -1,  0,  -3,   0,
+                 15,  -3,  0, -1, -1,  0,  -3,  15,
+                 10,  -3, -1, -1, -1, -1,  -3,  10,
+                 10,  -3, -1, -1, -1, -1,  -3,  10,
+                 15,  -3,  0, -1, -1,  0,  -3,  15,
                 -12, -15, -3, -3, -3, -3, -15, -12,
-                30 , -12,  0, -1, -1,  0, -12,  30,
+                80 , -12, 15, 10, 10, 15, -12,  80,
             ];
         }
         let idx = ((y as usize) << 3) | (x as usize);
@@ -63,7 +65,11 @@ impl Evaluator {
         let (fw2, wc) = stable_check(board, Tile::White, self.fixed_cache_white);
         self.fixed_cache_black = fb2;
         self.fixed_cache_white = fw2;
-        4 * (bc as i32) - 4 * (wc as i32)
+        10 * (bc as i32) - 10 * (wc as i32)
+    }
+    fn eval_putnum(&self, board: &Board) -> i32 {
+        // 置ける場所の評価
+        5 * putnum_check(board, Turn::Black) - 5 * putnum_check(board, Turn::White)
     }
 }
 
@@ -265,6 +271,9 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
     }
     */
 }
+fn putnum_check(board: &Board, turn: Turn) -> i32 {
+    iter_moves(board, turn).count() as i32
+}
 
 pub struct Searcher {
     evaluator: Evaluator,
@@ -306,7 +315,7 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
     if board.get_turn() == mycolor {
         let mut flg = false;
         let mut result_mv = mv.unwrap_or(Move::Pass);
-        for mv2 in iter_moves(board) {
+        for mv2 in iter_moves(board, board.get_turn()) {
             flg = true;
             let nmv = mv.or(Some(mv2));
             // 次の盤面を生成
@@ -330,7 +339,7 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
     } else {
         let mut flg = false;
         let mut result_mv = mv.unwrap_or(Move::Pass);
-        for mv2 in iter_moves(board) {
+        for mv2 in iter_moves(board, board.get_turn()) {
             flg = true;
             let nmv = mv.or(Some(mv2));
             // 次の盤面を生成
