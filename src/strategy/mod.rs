@@ -4,6 +4,7 @@ use rand::distributions;
 use rand::distributions::IndependentSample;
 
 use board::{Board, Move};
+use options::Opts;
 
 pub mod util;
 pub mod book;
@@ -84,9 +85,11 @@ pub struct MainStrategy {
     book: Book,
     searcher: Searcher,
     ending: EndingSearcher,
+    // options
+    ending_turns: u32,
 }
 impl MainStrategy {
-    fn new () -> Self {
+    fn new (opts: &Opts) -> Self {
         let random = RandomStrategy::new();
         let book = Book::new();
         let searcher = Searcher::new();
@@ -98,6 +101,7 @@ impl MainStrategy {
             book,
             searcher,
             ending,
+            ending_turns: opts.ending_turns,
         }
     }
 }
@@ -120,8 +124,8 @@ impl Strategy for MainStrategy {
             }
         }
         if self.state == MainStrategyState::Search {
-            if board.count_both() >= 52 {
-                // 最後10手を読み切る
+            if board.count_both() >= 64 - self.ending_turns {
+                // 終盤を読み切る
                 self.state = MainStrategyState::Ending;
             } else {
                 trace!("Using searching strategy");
@@ -143,7 +147,7 @@ impl Strategy for MainStrategy {
     }
 }
 
-pub fn make_strategy() -> MainStrategy {
-    MainStrategy::new()
+pub fn make_strategy(opts: &Opts) -> MainStrategy {
+    MainStrategy::new(opts)
 }
 

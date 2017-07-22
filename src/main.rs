@@ -18,7 +18,7 @@ fn main() {
     let opts = options::parse(args).unwrap_or_else(show_and_exit);
 
     let board = board::make_board();
-    let strategy = strategy::make_strategy();
+    let strategy = strategy::make_strategy(&opts);
 
     let mut client = Client::new(&opts, board, strategy).unwrap_or_else(show_err_and_exit);
 
