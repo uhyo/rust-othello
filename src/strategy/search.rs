@@ -26,7 +26,6 @@ impl Evaluator {
     fn evaluate(&mut self, board: &Board) -> i32 {
         // 係数はてきとうに
         let count = board.count_both();
-        /*
         // 石の位置の評価
         let bs = self.eval_place(board);
         // 確定石の評価
@@ -42,8 +41,7 @@ impl Evaluator {
             // 終盤
             return 2 * bs + 8 * ss;
         }
-        */
-        return (board.count(Tile::Black) as i32) - (board.count(Tile::White) as i32);
+        // return (board.count(Tile::Black) as i32) - (board.count(Tile::White) as i32);
     }
     fn eval_place(&self, board: &Board) -> i32 {
         // 石ごとの評価
@@ -166,7 +164,7 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
         yy -= 1;
     }
     // x = 7
-    y = 0;
+    let mut y = 0;
     while y < 7 {
         let t = board.get(7, y);
         if t == color {
@@ -176,7 +174,7 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
         }
         y += 1;
     }
-    yy = 7;
+    let mut yy = 7;
     while y < yy {
         let t = board.get(7, yy);
         if t == color {
@@ -214,13 +212,13 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
                             if 0 <= xdi && xdi <= 7 && 0 <= ydi && ydi <= 7 {
                                 idx(xdi as u8, ydi as u8)
                             }else{
-                                0xffffffff
+                                0xffffffffffffffff
                             };
                         let i2 =
                             if 0 <= xdi2 && xdi2 <= 7 && 0 <= ydi2 && ydi2 <= 7 {
                                 idx(xdi2 as u8, ydi2 as u8)
                             }else{
-                                0xffffffff
+                                0xffffffffffffffff
                             };
                         if fixed & (i1 | i2) != 0 {
                             // 片方が確定石である: OK
@@ -259,36 +257,6 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
     }
     // 結果を返す
     return (fixed, fixed.count_ones());
-    /*
-    let mut st = 1;
-    while st < 4 {
-        // 四隅の判定
-        let upleft = board.get(st, st) == color &&
-            fixed & (1 << idx(st - 1, st)) != 0 &&
-            fixed & (1 << idx(st, st - 1)) != 0;
-        let upright = board.get(7 - st, st) == color &&
-            fixed & (1 << idx(8 - st, st)) != 0 &&
-            fixed & (1 << idx(7 - st, st - 1)) != 0;
-        if upleft {
-            // 左上から右へ
-            if fixed & (1 << idx(st + 1, st - 1)) != 0 {
-                // ここは確定石だ
-                fixed |= 1 << idx(st, st);
-                // 右に進む
-                let mut xx = st + 1;
-                while xx < 8 - st {
-                    if board.get(xx, st) != color {
-                        break;
-                    }
-                    if fixed & (1 << idx(xx + 1, st - 1)) == 0 {
-                        break;
-                    }
-                    fixed |= 1 << idx(xx, st);
-                }
-            }
-        }
-    }
-    */
 }
 fn putnum_check(board: &Board, turn: Turn) -> i32 {
     iter_moves(board, turn).count() as i32
@@ -351,7 +319,7 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
             }
             if alpha >= beta {
                 // cut - 高すぎたら無理
-                return (alpha, mv3);
+                return (beta, mv3);
             }
         }
         if flg {
@@ -367,14 +335,14 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
             let mut board2 = board.clone();
             board2.apply_move(mv2).unwrap();
 
-            let (av, mv3) = alphabeta(evaluator, &board2, mycolor, depth-1, -beta, alpha, nmv);
+            let (av, mv3) = alphabeta(evaluator, &board2, mycolor, depth-1, alpha, beta, nmv);
             if av <= beta {
                 beta = av;
                 result_mv = mv3;
             }
             if alpha >= beta {
                 // cut
-                return (beta, mv3);
+                return (alpha, mv3);
             }
         }
         if flg {

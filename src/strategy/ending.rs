@@ -17,6 +17,7 @@ impl GameTree {
             if mv == mvv {
                 // これだ
                 idx = i;
+                break;
             }
         }
         return self.moves.swap_remove(idx).1;
@@ -47,7 +48,7 @@ impl EndingSearcher {
                     search(board, mycolor, false)
                 }
             };
-        match table.moves.iter().next() {
+        match table.moves.first() {
             None => {
                 // 動けない
                 self.table = Some(table);
@@ -77,10 +78,15 @@ fn search<B>(board: &B, mycolor: Turn, one_pass: bool) -> GameTree where B: Boar
             let t = search(&mut board2, mycolor, false);
             rmin = min(rmin, t.min);
             rmax = max(rmax, t.max);
-            moves.push((mv, t));
-            if rmin == Ordering::Greater && board.get_turn() == mycolor {
+            if t.min == Ordering::Greater && board.get_turn() == mycolor {
                 // いいのを見つけた（これでいいじゃん）
+                moves.clear();
+                rmin = Ordering::Greater;
+                rmax = Ordering::Greater;
+                moves.push((mv, t));
                 break;
+            } else {
+                moves.push((mv, t));
             }
         }
     }
