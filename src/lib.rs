@@ -102,7 +102,7 @@ mod test {
             assert_eq!(stable_check(&board, Tile::Black, 0).1, 11);
         }
         #[test]
-        fn edge_fuifilled() {
+        fn edge_fulfilled() {
             let b = Tile::Black;
             let w = Tile::White;
             let e = Tile::Empty;
@@ -119,6 +119,27 @@ mod test {
 
             assert_eq!(stable_check(&board, Tile::Black, 0).1, 4);
         }
+        /*
+        #[test]
+        fn other() {
+            let b = Tile::Black;
+            let w = Tile::White;
+            let e = Tile::Empty;
+            let board = make_board(vec![
+                b, b, b, w, w, w, w, w,
+                b, b, b, b, w, b, w, b,
+                b, b, b, w, b, w, b, b,
+                w, b, b, b, w, b, b, b,
+                e, w, b, b, b, b, b, b,
+                w, w, w, b, b, b, b, b,
+                e, w, b, b, b, b, b, b,
+                w, w, w, w, w, w, w, b,
+            ]);
+
+            println!("{:b}",stable_check(&board, Tile::Black, 0).0);
+            assert_eq!(stable_check(&board, Tile::Black, 0), (0b10000000_11111100_11111000_11111100_11101100_11010011_10100111_00000111, 36));
+        }
+        */
 
 
 
