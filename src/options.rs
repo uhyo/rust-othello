@@ -11,6 +11,7 @@ pub struct Opts {
     pub name: String,
     // strategies
     pub ending_turns: u32,
+    pub depth: u32,
 }
 
 pub fn parse(args: Vec<String>) -> Result<Opts, String>{
@@ -20,7 +21,9 @@ pub fn parse(args: Vec<String>) -> Result<Opts, String>{
     opts.optopt("p", "port", "Port of othello server.", "PORT");
     opts.optopt("h", "host", "Host of othello server.", "HOST");
     opts.optopt("n", "name", "Name of client.", "NAME");
+
     opts.optopt("e", "ending", "Number of turns to run in ending strategy (default: 10)", "NUMBER");
+    opts.optopt("d", "depth", "Depth of alpha-beta searching (default: 6)", "NUMBER");
 
     // parse options
     let args = try!(opts.parse(args).or_else(geterr));
@@ -30,12 +33,14 @@ pub fn parse(args: Vec<String>) -> Result<Opts, String>{
     let host = args.opt_str("host").unwrap_or(String::from("localhost"));
     let name = args.opt_str("name").unwrap_or(String::from("client"));
     let ending_turns = try!(args.opt_str("ending").map_or(Ok(12), |s| s.parse()).or_else(geterr));
+    let depth = try!(args.opt_str("depth").map_or(Ok(6), |s| s.parse()).or_else(geterr));
 
     Ok(Opts {
         port,
         host,
         name,
         ending_turns,
+        depth,
     })
 }
 

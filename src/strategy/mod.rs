@@ -92,7 +92,7 @@ impl MainStrategy {
     fn new (opts: &Opts) -> Self {
         let random = RandomStrategy::new();
         let book = Book::new();
-        let searcher = Searcher::new();
+        let searcher = Searcher::new(opts);
         let ending = EndingSearcher::new();
 
         MainStrategy {

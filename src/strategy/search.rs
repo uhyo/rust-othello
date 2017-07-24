@@ -1,5 +1,6 @@
 // Search by alphabeta
 
+use options::Opts;
 use board::{Board, Tile, Move, Turn};
 use strategy::util::{iter_moves};
 
@@ -23,53 +24,71 @@ impl Evaluator {
     // てきとうな評価関数
     // Blackに対してアレする
     fn evaluate(&mut self, board: &Board) -> i32 {
-        let mut result = 0;
+        // 係数はてきとうに
+        let count = board.count_both();
+        /*
+        // 石の位置の評価
+        let bs = self.eval_place(board);
+        // 確定石の評価
+        let ss = self.eval_stable(board);
+        // 置ける場所の評価
+        let cs = self.eval_putnum(board);
+        if count < 20 {
+            return bs + 5 * ss + 4 * cs;
+        } else if count < 44 {
+            // 中盤
+            return 2 * bs + 5 * ss + cs;
+        } else {
+            // 終盤
+            return 2 * bs + 8 * ss;
+        }
+        */
+        return (board.count(Tile::Black) as i32) - (board.count(Tile::White) as i32);
+    }
+    fn eval_place(&self, board: &Board) -> i32 {
         // 石ごとの評価
+        let mut result = 0;
         for x in 0..8 {
             for y in 0..8 {
                 let t = board.get(x, y);
                 if t == Tile::Black {
-                    result += self.eval_place(x, y);
+                    result += self.eval_one_place(x, y);
                 } else if t == Tile::White {
-                    result -= self.eval_place(x, y);
+                    result -= self.eval_one_place(x, y);
                 }
             }
         }
-        // 確定石の評価
-        result += self.eval_stable(board);
-        // 置ける場所の評価
-        result += self.eval_putnum(board);
         result
     }
-    fn eval_place(&self, x: u8, y: u8) -> i32 {
+    fn eval_one_place(&self, x: u8, y: u8) -> i32 {
         // 場所の評価
         // 参考: http://uguisu.skr.jp/othello/5-1.html
         lazy_static! {
+            // 序盤用
             static ref PVALUE: Vec<i32> = vec![
-                80 , -12, 15, 10, 10, 15, -12,  80,
-                -12, -15, -3, -3, -3, -3, -15, -12,
-                 15,  -3,  0, -1, -1,  0,  -3,  15,
-                 10,  -3, -1, -1, -1, -1,  -3,  10,
-                 10,  -3, -1, -1, -1, -1,  -3,  10,
-                 15,  -3,  0, -1, -1,  0,  -3,  15,
-                -12, -15, -3, -3, -3, -3, -15, -12,
-                80 , -12, 15, 10, 10, 15, -12,  80,
+                 45, -11,  4, -1, -1,  4, -11,  45,
+                -11, -16, -1, -3, -3, -1, -16, -11,
+                  4,  -1,  2, -1, -1,  2,  -1,   4,
+                 -1,  -3, -1,  0,  0, -1,  -3,  -1,
+                 -1,  -3, -1,  0,  0, -1,  -3,  -1,
+                  4,  -1,  2, -1, -1,  2,  -1,   4,
+                -11, -16, -1, -3, -3, -1, -16, -11,
+                 45, -11,  4, -1, -1,  4, -11,  45,
             ];
         }
         let idx = ((y as usize) << 3) | (x as usize);
         PVALUE[idx]
     }
     fn eval_stable(&mut self, board: &Board) -> i32 {
-        // 係数はてきとう
         let (fb2, bc) = stable_check(board, Tile::Black, self.fixed_cache_black);
         let (fw2, wc) = stable_check(board, Tile::White, self.fixed_cache_white);
         self.fixed_cache_black = fb2;
         self.fixed_cache_white = fw2;
-        10 * (bc as i32) - 10 * (wc as i32)
+        (bc as i32) - (wc as i32)
     }
     fn eval_putnum(&self, board: &Board) -> i32 {
         // 置ける場所の評価
-        5 * putnum_check(board, Turn::Black) - 5 * putnum_check(board, Turn::White)
+        putnum_check(board, Turn::Black) - putnum_check(board, Turn::White)
     }
 }
 
@@ -277,18 +296,20 @@ fn putnum_check(board: &Board, turn: Turn) -> i32 {
 
 pub struct Searcher {
     evaluator: Evaluator,
+    depth: u32,
 }
 impl Searcher {
-    pub fn new() -> Searcher {
+    pub fn new(opts: &Opts) -> Searcher {
         let evaluator = Evaluator::new();
         Searcher {
             evaluator,
+            depth: opts.depth,
         }
     }
     pub fn search<B>(&mut self, board: &B) -> Move
         where B: Board + Clone {
         // てきとう
-        let depth = 6;
+        let depth = self.depth;
         let mycolor = board.get_turn();
         let (_, mv) = alphabeta(&mut self.evaluator, board, mycolor, depth, <i32>::min_value(), <i32>::max_value(), None);
         mv
@@ -330,7 +351,7 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
             }
             if alpha >= beta {
                 // cut - 高すぎたら無理
-                return (beta, mv3);
+                return (alpha, mv3);
             }
         }
         if flg {
@@ -353,7 +374,7 @@ fn alphabeta<B>(evaluator: &mut Evaluator, board: &B, mycolor: Turn, depth: u32,
             }
             if alpha >= beta {
                 // cut
-                return (alpha, mv3);
+                return (beta, mv3);
             }
         }
         if flg {
