@@ -3,7 +3,7 @@ use getopts;
 
 use std::error::Error;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Opts {
     // protocols
     pub port: u16,

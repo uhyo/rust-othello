@@ -3,6 +3,8 @@ use std::mem;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
+use std::thread;
+use std::sync::mpsc;
 use rand;
 
 use options::Opts;
@@ -62,6 +64,7 @@ fn do_match<S>(strategy1: S, strategy2: S) -> Result<MatchResult, String>
 }
 
 static DATANAME: &str = "data/record.db";
+static THREADS: u32 = 4;
 
 pub fn match_mode(opts: &Opts) -> io::Result<()>{
     // 結果をファイルに書き込み
@@ -71,52 +74,72 @@ pub fn match_mode(opts: &Opts) -> io::Result<()>{
         .open(DATANAME)?;
 
     let mut game_count = 0u32;
-    loop {
-        // 1ゲーム行う
-        let strategy1 = make_learner(opts);
-        let strategy2 = make_learner(opts);
+    let (tx, rx) = mpsc::channel();
 
-        match do_match(strategy1, strategy2) {
-            Err(err)=>{
-                warn!("Error: {}", err);
-            },
-            Ok(res)=>{
-                let mut buf: Vec<u8> = Vec::with_capacity(64);
-                let mut i = 0;
-                for mv in res.moves.iter() {
-                    match *mv {
-                        Move::Pass => {
-                            // Pass
-                            buf.push(0x88)
-                        },
-                        Move::Put {x, y} => {
-                            buf.push((x << 4) | y);
-                        },
-                    }
-                    i += 1;
-                    if i == 60 {
-                        // 最大60手のはず
-                        break;
-                    }
-                }
-                // 残りを埋める
-                while i < 62 {
-                    buf.push(0xff);
-                    i += 1;
-                }
-                // 石の数の情報
-                buf.push(res.black as u8);
-                buf.push(res.white as u8);
-                // write
-                file.write_all(&buf)?;
-                file.flush()?;
+    // 各スレッドでゲームを行う
+    for t in 0..THREADS {
+        let tx2 = tx.clone();
+        let opts = opts.clone();
+        thread::spawn(move || {
+            loop {
+                // 1ゲーム行う
+                let strategy1 = make_learner(&opts);
+                let strategy2 = make_learner(&opts);
 
-                info!("Write {} bytes", buf.len());
-                game_count += 1;
-                if game_count % 10 == 0 {
-                    info!("{} games written", game_count);
+                match do_match(strategy1, strategy2) {
+                    Err(err)=>{
+                        warn!("Error: {}", err);
+                    },
+                    Ok(res)=>{
+                        let mut buf: Vec<u8> = Vec::with_capacity(64);
+                        let mut i = 0;
+                        for mv in res.moves.iter() {
+                            match *mv {
+                                Move::Pass => {
+                                    // Pass
+                                    buf.push(0x88)
+                                },
+                                Move::Put {x, y} => {
+                                    buf.push((x << 4) | y);
+                                },
+                            }
+                            i += 1;
+                            if i == 60 {
+                                // 最大60手のはず
+                                break;
+                            }
+                        }
+                        // 残りを埋める
+                        while i < 62 {
+                            buf.push(0xff);
+                            i += 1;
+                        }
+                        // 石の数の情報
+                        buf.push(res.black as u8);
+                        buf.push(res.white as u8);
+                        tx2.send((t, buf)).unwrap_or_else(|err| {
+                            warn!("{}", err);
+                        });
+                    },
                 }
-            },
+            }
+        });
+    }
+    // 受信側
+    for (i, buf) in rx {
+        // write
+        info!("Writing {} bytes (thread #{})", buf.len(), i+1);
+
+        file.write_all(&buf).and_then(|()| file.flush())
+            .unwrap_or_else(|err| {
+                warn!("{}", err);
+                ()
+            });
+
+        game_count += 1;
+        if game_count % 10 == 0 {
+            info!("{} games written", game_count);
         }
     }
+    Ok(())
 }
