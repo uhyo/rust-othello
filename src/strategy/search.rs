@@ -274,6 +274,9 @@ impl Searcher {
             depth: opts.depth,
         }
     }
+    // ひとつ勝手に手が進んだ
+    pub fn go(&mut self, _mv: Move) {
+    }
     pub fn search<B>(&mut self, board: &B) -> Move
         where B: Board + Clone {
         // てきとう

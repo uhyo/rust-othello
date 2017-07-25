@@ -8,6 +8,7 @@ pub mod options;
 pub mod client;
 pub mod board;
 pub mod strategy;
+pub mod matcher;
 
 #[cfg(test)]
 mod test {

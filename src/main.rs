@@ -10,6 +10,9 @@ use othello::options;
 use othello::client::Client;
 use othello::board;
 use othello::strategy;
+use othello::matcher;
+
+use options::Opts;
 
 fn main() {
     pretty_env_logger::init().unwrap();
@@ -17,13 +20,26 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let opts = options::parse(args).unwrap_or_else(show_and_exit);
 
+    if opts.selfmatch {
+        selfmatch_mode(&opts);
+    } else {
+        client_mode(&opts);
+    }
+}
+
+// サーバーへ接続
+fn client_mode(opts: &Opts) {
     let board = board::make_board();
     let strategy = strategy::make_strategy(&opts);
 
     let mut client = Client::new(&opts, board, strategy).unwrap_or_else(show_err_and_exit);
 
     client.run().unwrap();
+}
 
+// 学習用の自己対戦
+fn selfmatch_mode(opts: &Opts) {
+    matcher::match_mode(opts).unwrap();
 }
 
 fn show_and_exit<R>(err: String) -> R{

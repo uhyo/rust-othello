@@ -22,6 +22,8 @@ pub struct Book{
     opening: bool,
     // position transformation
     transform: Transform,
+    // run out of the book
+    runout: bool,
 }
 
 impl Book {
@@ -41,6 +43,7 @@ impl Book {
             index: 0,
             opening: true,
             transform,
+            runout: false,
         }
     }
     pub fn reset(&mut self) {
@@ -48,8 +51,12 @@ impl Book {
         self.last = (self.book.len() as usize)/64 - 1;
         self.index = 0;
         self.opening = true;
+        self.runout = false;
     }
     pub fn gen(&mut self, last_move: Option<Move>) -> Option<(Move, bool)> {
+        if self.runout {
+            return None;
+        }
         match last_move {
             None => {
                 // 最初の1手はC4で決まっているぞ
@@ -60,33 +67,15 @@ impl Book {
                     y: 3,
                 }, true));
             },
-            Some(Move::Pass) => return None,
-            Some(Move::Put {x, y}) => {
-                let mut first = self.first;
-                let mut last = self.last;
-                let book = &self.book;
-                if self.opening {
-                    // transformをinitする
-                    self.transform.init(x, y);
-                    self.opening = false;
-                    // C4はDBに入っていないから探索しない
-                } else {
-                    // 開始と終わりを探索
-                    let index = self.index;
-                    let v = (x << 4) | y;
-                    let firsto = find_start(book, first, last, index, v);
-                    let lasto = find_last(book, first, last, index, v);
-                    if firsto.is_none() {
-                        return None;
-                    }
-                    if lasto.is_none() {
-                        return None;
-                    }
-                    // まだありそうだ
-                    first = firsto.unwrap();
-                    last = lasto.unwrap();
-                    self.index += 1;
+            Some(mv) => {
+                // 手を進める
+                if !self.go(mv) {
+                    // もうbookで探索できない
+                    return None;
                 }
+                let first = self.first;
+                let last = self.last;
+
                 // 候補から選択
                 let next =
                     if first == last {
@@ -103,7 +92,7 @@ impl Book {
                         for _ in 0..num {
                             let i = ran.ind_sample(&mut rng);
                             // TODO もうちょっときれいに書けるのでは?
-                            let v = ((book[i * 64 + 60] as u32) << 24) | ((book[i * 64 + 61] as u32) << 16) | ((book[i * 64 + 62] as u32) << 8) | (book[i * 64 + 63] as u32);
+                            let v = ((self.book[i * 64 + 60] as u32) << 24) | ((self.book[i * 64 + 61] as u32) << 16) | ((self.book[i * 64 + 62] as u32) << 8) | (self.book[i * 64 + 63] as u32);
                             if mx <= v {
                                 // これのほうが評価値がいい
                                 idx = i;
@@ -112,9 +101,10 @@ impl Book {
                         }
                         idx
                     };
-                let ret = book[next * 64 + self.index];
+                let ret = self.book[next * 64 + self.index];
                 if ret == 0xFF {
                     // 相手の番で終わる変な定石だ
+                    self.runout = true;
                     return None;
                 }
                 let ret = self.transform.get(ret);
@@ -125,15 +115,44 @@ impl Book {
                     y: mvy,
                 };
                 // 自分の手番でさらに絞る
-                let first2 = find_start(book, first, last, self.index, ret);
-                let last2 = find_last(book, first, last, self.index, ret);
-                if first2.is_none() || last2.is_none() {
-                    return Some((mv2, false));
+                let rb = self.go(mv2);
+                return Some((mv2, rb));
+            },
+        }
+    }
+    // 返り値: まだ定石があるか
+    pub fn go(&mut self, last_move: Move) -> bool {
+        if self.runout {
+            return false;
+        }
+        match last_move {
+            Move::Pass => return false,
+            Move::Put {x, y} => {
+                let first = self.first;
+                let last = self.last;
+                let book = &self.book;
+                if self.opening {
+                    // 最初の一手だ
+                    // transformをinitする
+                    self.transform.init(x, y);
+                    self.opening = false;
+                    // C4はDBに入っていないから探索しない
+                } else {
+                    // 開始と終わりを探索
+                    let index = self.index;
+                    let v = (x << 4) | y;
+                    let firsto = find_start(book, first, last, index, v);
+                    let lasto = find_last(book, first, last, index, v);
+                    if firsto.is_none() || lasto.is_none() {
+                        self.runout = true;
+                        return false;
+                    }
+                    // まだありそうだ
+                    self.first = firsto.unwrap();
+                    self.last = lasto.unwrap();
+                    self.index += 1;
                 }
-                self.first = first2.unwrap();
-                self.last = last2.unwrap();
-                self.index += 1;
-                return Some((mv2, true));
+                return true;
             },
         }
     }

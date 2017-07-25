@@ -17,7 +17,10 @@ use self::ending::EndingSearcher;
 
 
 pub trait Strategy {
+    // playをひとつ進める
     fn play<B>(&mut self, board: &B, last_move: Option<Move>, time: i32) -> Move where B: Board + Clone;
+    // strategyは使わないが手が進んだ場合
+    fn go<B>(&mut self, board: &B, last_move_op: Option<Move>, last_move_me: Move) where B: Board + Clone;
     fn reset(&mut self);
 }
 
@@ -67,6 +70,8 @@ impl Strategy for RandomStrategy{
         // いけそうなところがなかった
         return Move::Pass;
     }
+    fn go<B>(&mut self, _board: &B, _last_move_op: Option<Move>, _last_move_me: Move) {
+    }
     fn reset(&mut self) {
         self.points = make_points();
     }
@@ -93,7 +98,7 @@ impl MainStrategy {
         let random = RandomStrategy::new();
         let book = Book::new();
         let searcher = Searcher::new(opts);
-        let ending = EndingSearcher::new();
+        let ending = EndingSearcher::new(opts);
 
         MainStrategy {
             state: MainStrategyState::Book,
@@ -139,6 +144,34 @@ impl Strategy for MainStrategy {
         trace!("Using random strategy");
         return self.random.play(board, last_move, time);
     }
+    fn go<B>(&mut self, _board: &B, last_move_op: Option<Move>, last_move_me: Move) {
+        if self.state == MainStrategyState::Book {
+            let r = 
+                if let Some(m) = last_move_op {
+                    self.book.go(m)
+                } else {
+                    true
+                };
+            if !r {
+                self.state = MainStrategyState::Search;
+            } else {
+                let r2 = self.book.go(last_move_me);
+                if !r2 {
+                    self.state = MainStrategyState::Search;
+                }
+            }
+        } else if self.state == MainStrategyState::Search {
+            if let Some(m) = last_move_op {
+                self.searcher.go(m);
+            }
+            self.searcher.go(last_move_me);
+        } else if self.state == MainStrategyState::Ending {
+            if let Some(m) = last_move_op {
+                self.ending.go(m);
+            }
+            self.ending.go(last_move_me);
+        }
+    }
     fn reset(&mut self) {
         self.state = MainStrategyState::Book;
         self.book.reset();
@@ -151,3 +184,58 @@ pub fn make_strategy(opts: &Opts) -> MainStrategy {
     MainStrategy::new(opts)
 }
 
+pub struct SometimesRandomStrategy {
+    main: MainStrategy,
+    random: RandomStrategy,
+    rng: Box<rand::Rng>,
+}
+impl SometimesRandomStrategy {
+    fn new(opts: &Opts) -> Self {
+        SometimesRandomStrategy {
+            main: MainStrategy::new(opts),
+            random: RandomStrategy::new(),
+            rng: Box::new(rand::thread_rng()),
+        }
+    }
+}
+impl Strategy for SometimesRandomStrategy {
+    fn reset(&mut self) {
+        self.main.reset();
+        self.random.reset();
+    }
+    fn go<B>(&mut self, board: &B, last_move_op: Option<Move>, last_move_me: Move) where B: Board + Clone {
+        self.main.go(board, last_move_op, last_move_me);
+        self.random.go(board, last_move_op, last_move_me);
+    }
+    fn play<B>(&mut self, board: &B, last_move: Option<Move>, time: i32) -> Move
+        where B: Board + Clone {
+        // たまにrandomを選ぶ
+        let ran = distributions::Range::new(0, 100);
+        let i = ran.ind_sample(&mut self.rng);
+        let rn =
+            if self.main.state == MainStrategyState::Book {
+                // 序盤は大きめのランダムさ
+                25
+            } else if self.main.state == MainStrategyState::Search {
+                9
+            } else {
+                // 終盤は間違える必要がない
+                0
+            };
+        if i < rn {
+            // ランダムな確率
+            trace!("Using random strategy");
+            let mv = self.random.play(board, last_move, time);
+            self.main.go(board, last_move, mv);
+            return mv;
+        } else {
+            let mv = self.main.play(board, last_move, time);
+            self.random.go(board, last_move, mv);
+            return mv;
+        }
+    }
+}
+
+pub fn make_learner(opts: &Opts) -> SometimesRandomStrategy {
+    SometimesRandomStrategy::new(opts)
+}
