@@ -97,7 +97,7 @@ pub fn match_mode(opts: &Opts) -> io::Result<()>{
                             match *mv {
                                 Move::Pass => {
                                     // Pass
-                                    buf.push(0x88)
+                                    buf.push(0x88);
                                 },
                                 Move::Put {x, y} => {
                                     buf.push((x << 4) | y);
