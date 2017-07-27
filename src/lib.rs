@@ -3,6 +3,7 @@
 extern crate regex;
 extern crate getopts;
 extern crate rand;
+extern crate byteorder;
 
 pub mod options;
 pub mod client;

@@ -114,7 +114,7 @@ impl Strategy for MainStrategy {
     fn play<B>(&mut self, board: &B, last_move: Option<Move>, time: i32) -> Move 
         where B: Board + Clone {
         if self.state == MainStrategyState::Book {
-            match self.book.gen(last_move) {
+            match self.book.gen(board.get_turn(), last_move) {
                 None => {
                     self.state = MainStrategyState::Search;
                 },

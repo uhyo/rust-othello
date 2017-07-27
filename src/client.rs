@@ -24,6 +24,13 @@ lazy_static! {
     static ref RACK: Regex = Regex::new(r"^ACK (-?\d+)").unwrap();
 }
 
+#[derive(Debug,PartialEq,Eq)]
+enum TurnResult {
+    GameEnd,
+    Moved(Move),
+    Err(String),
+}
+
 #[derive(Debug)]
 pub struct Client<B, S>
     where B: Board + Clone, S: Strategy {
@@ -43,6 +50,7 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
     pub fn new(opts: &options::Opts, board: B, strategy: S) -> io::Result<Self>{
         let name = opts.name.clone();
         let stream = TcpStream::connect((opts.host.as_ref(), opts.port))?;
+        stream.set_read_timeout(None)?;
         info!("Connected to the server");
 
         let stream = BufReader::new(stream);
@@ -62,11 +70,17 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
         writeln!(self.stream.get_mut(), "OPEN {}", self.name)?;
         debug!("Registered as client {}", self.name);
 
-        self.wait_for_game()
+        loop {
+            let bye = self.one_game()?;
+            if bye {
+                break;
+            }
+        }
+        Ok(())
     }
 
     // 'waiting for game' state
-    fn wait_for_game(&mut self) -> io::Result<()> {
+    fn one_game(&mut self) -> io::Result<bool> {
         trace!("State: wait_for_game");
         let mut buf = String::new();
         self.stream.read_line(&mut buf)?;
@@ -74,7 +88,7 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
             // BYEコマンドを受け取った
             trace!("{}", buf.trim());
             info!("Connection closed by the server");
-            return Ok(());
+            return Ok(true);
         }
         if let Some(caps) = RSTART.captures(&buf) {
             trace!("{}", buf.trim());
@@ -89,23 +103,54 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
                 self.color = Turn::White;
             }
             self.time = time;
-            self.board.reset();
-            self.strategy.reset();
+        } else {
+            debug!("{}", buf.trim());
+            warn!("Invalid command sent from the server");
+            return Ok(true);
+        }
+        // 盤面を初期化
+        self.board.reset();
+        self.strategy.reset();
 
-            if self.color == Turn::Black {
-                return self.my_turn(None);
-            } else {
-                return self.opponent_turn();
+        if self.color == Turn::Black {
+            let mut last_move = None;
+            loop {
+                let e = self.my_turn(last_move)?;
+                match e {
+                    TurnResult::GameEnd => break,
+                    TurnResult::Err(_) => return Ok(true),
+                    _ => (),
+                }
+                match self.opponent_turn()? {
+                    TurnResult::GameEnd => break,
+                    TurnResult::Err(_) => return Ok(true),
+                    TurnResult::Moved(mv) => {
+                        last_move = Some(mv);
+                    },
+                }
+            }
+        } else {
+            let mut last_move = None;
+            loop {
+                match self.opponent_turn()? {
+                    TurnResult::GameEnd => break,
+                    TurnResult::Err(_) => return Ok(true),
+                    TurnResult::Moved(mv) => {
+                        last_move = Some(mv);
+                    },
+                }
+                let e = self.my_turn(last_move)?;
+                match e {
+                    TurnResult::GameEnd => break,
+                    TurnResult::Err(_) => return Ok(true),
+                    _ => (),
+                }
             }
         }
-
-        debug!("{}", buf.trim());
-        warn!("Invalid command sent from the server");
-
-        Ok(())
+        return Ok(false);
     }
     // opponent's turn
-    fn opponent_turn(&mut self) -> io::Result<()>{
+    fn opponent_turn(&mut self) -> io::Result<TurnResult>{
         trace!("State: opponent_turn");
         // 相手ターンなので通信を待機
         // TODO 相手ターンでも探索したらいいのでは?
@@ -118,8 +163,7 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
             let mut buf = String::new();
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
-
-            return self.wait_for_game();
+            return Ok(TurnResult::GameEnd);
         }
         if let Some(caps) = RMOVE.captures(&buf) {
             trace!("{}", buf.trim());
@@ -130,12 +174,12 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
                     Ok(()) => {
                         trace!("\n{}", self.board.pretty_print());
                         // 次のターンへ
-                        self.my_turn(Some(mv))
+                        Ok(TurnResult::Moved(mv))
                     },
                     Err(s) => {
                         // おかしい着手が来たぞ
                         warn!("Invalid move sent from the server - {}", s);
-                        Ok(())
+                        Ok(TurnResult::Err(String::from("Invalid move sent from the server")))
                     },
                 }
             }
@@ -144,10 +188,10 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
         // 変なレスポンス
         debug!("{}", buf.trim());
         warn!("Invalid command sent from the server");
-        Ok(())
+        Ok(TurnResult::Err(String::from("Invalid command sent from the server")))
     }
     // my turn
-    fn my_turn(&mut self, last_move: Option<Move>) -> io::Result<()>{
+    fn my_turn(&mut self, last_move: Option<Move>) -> io::Result<TurnResult>{
         trace!("State: my_turn");
         // 自分の番なので手番をアレする
         let mv = self.strategy.play(&self.board, last_move, self.time);
@@ -174,7 +218,7 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
             let time: i32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap();
             self.time = time;
             // これは相手の番だ
-            return self.opponent_turn();
+            return Ok(TurnResult::Moved(mv));
         }
         if let Some(caps) = REND.captures(&buf) {
             trace!("{}", buf.trim());
@@ -182,13 +226,12 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
             let mut buf = String::new();
             caps.expand("Game ended: $1 ($2/$3) - $4", &mut buf);
             info!("{}", buf.trim());
-
-            return self.wait_for_game();
+            return Ok(TurnResult::GameEnd);
         }
         // 変なの来た
         debug!("{}", buf.trim());
         warn!("Invalid command sent from the server");
-        Ok(())
+        Ok(TurnResult::Err(String::from("Invalid command sent from the server")))
     }
 }
 
