@@ -64,7 +64,7 @@ fn do_match<S>(strategy1: S, strategy2: S) -> Result<MatchResult, String>
 }
 
 static DATANAME: &str = "data/record.db";
-static THREADS: u32 = 4;
+static THREADS: u32 = 6;
 
 pub fn match_mode(opts: &Opts) -> io::Result<()>{
     // 結果をファイルに書き込み
