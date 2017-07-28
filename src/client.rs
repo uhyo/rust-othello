@@ -131,14 +131,14 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
             }
         } else {
             loop {
-                let mut last_move = None;
-                match self.opponent_turn()? {
-                    TurnResult::GameEnd => break,
-                    TurnResult::Err(_) => return Ok(true),
-                    TurnResult::Moved(mv) => {
-                        last_move = Some(mv);
-                    },
-                }
+                let last_move =
+                    match self.opponent_turn()? {
+                        TurnResult::GameEnd => break,
+                        TurnResult::Err(_) => return Ok(true),
+                        TurnResult::Moved(mv) => {
+                            Some(mv)
+                        },
+                    };
                 let e = self.my_turn(last_move)?;
                 match e {
                     TurnResult::GameEnd => break,
