@@ -130,8 +130,8 @@ impl<B, S> Client<B, S> where B: Board + Clone, S: Strategy {
                 }
             }
         } else {
-            let mut last_move = None;
             loop {
+                let mut last_move = None;
                 match self.opponent_turn()? {
                     TurnResult::GameEnd => break,
                     TurnResult::Err(_) => return Ok(true),

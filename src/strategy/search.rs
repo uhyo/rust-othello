@@ -11,19 +11,19 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    fn new() -> Evaluator {
+    pub fn new() -> Evaluator {
         Evaluator {
             fixed_cache_black: 0,
             fixed_cache_white: 0,
         }
     }
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.fixed_cache_black = 0;
         self.fixed_cache_white = 0;
     }
     // てきとうな評価関数
     // Blackに対してアレする
-    fn evaluate(&mut self, board: &Board) -> i32 {
+    pub fn evaluate(&mut self, board: &Board) -> i32 {
         // 係数はてきとうに
         let count = board.count_both();
         // 石の位置の評価
@@ -43,7 +43,7 @@ impl Evaluator {
         }
         // return (board.count(Tile::Black) as i32) - (board.count(Tile::White) as i32);
     }
-    fn eval_place(&self, board: &Board) -> i32 {
+    pub fn eval_place(&self, board: &Board) -> i32 {
         // 石ごとの評価
         let mut result = 0;
         for x in 0..8 {
@@ -58,7 +58,7 @@ impl Evaluator {
         }
         result
     }
-    fn eval_one_place(&self, x: u8, y: u8) -> i32 {
+    pub fn eval_one_place(&self, x: u8, y: u8) -> i32 {
         // 場所の評価
         // 参考: http://uguisu.skr.jp/othello/5-1.html
         lazy_static! {
@@ -77,14 +77,14 @@ impl Evaluator {
         let idx = ((y as usize) << 3) | (x as usize);
         PVALUE[idx]
     }
-    fn eval_stable(&mut self, board: &Board) -> i32 {
+    pub fn eval_stable(&mut self, board: &Board) -> i32 {
         let (fb2, bc) = stable_check(board, Tile::Black, self.fixed_cache_black);
         let (fw2, wc) = stable_check(board, Tile::White, self.fixed_cache_white);
         self.fixed_cache_black = fb2;
         self.fixed_cache_white = fw2;
         (bc as i32) - (wc as i32)
     }
-    fn eval_putnum(&self, board: &Board) -> i32 {
+    pub fn eval_putnum(&self, board: &Board) -> i32 {
         // 置ける場所の評価
         putnum_check(board, Turn::Black) - putnum_check(board, Turn::White)
     }
