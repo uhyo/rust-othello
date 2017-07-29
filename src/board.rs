@@ -323,6 +323,136 @@ impl Board for BitBoard {
     fn count_both(&self) -> u32 {
         (self.black | self.white).count_ones()
     }
+    fn apply_move(&mut self, mv: Move) -> Result<(), String> {
+        match mv {
+            Move::Pass => {
+                let t = self.get_turn();
+                self.set_turn(flip_turn(t));
+                Ok(())
+            },
+            Move::Put {x, y} => {
+                let (taker, taken) =
+                    if self.get_turn() == Turn::Black {
+                        (self.black, self.white)
+                    } else {
+                        (self.white, self.black)
+                    };
+
+                let mut result = 0u64;
+                let mv = idx(x, y);
+                if taker & mv != 0 {
+                    return Err(String::from("Tile already exists"));
+                }
+                // 左
+                let mut r = 0u64;
+                let mask = 0x7f7f7f7f7f7f7f7f;
+                let mut moo = (mv >> 1) & mask;
+                while moo & taken != 0 {
+                    // こちらの方向に取れる石が続いている
+                    r |= moo;
+                    moo = (moo >> 1) & mask;
+                }
+                if moo & taker != 0 {
+                    //終点にも石があったので取れる
+                    result |= r;
+                }
+                // 上
+                let mut r = 0u64;
+                let mask = 0x00ffffffffffffff;
+                let mut moo = (mv >> 8) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo >> 8) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 右
+                let mut r = 0u64;
+                let mask = 0xfefefefefefefefe;
+                let mut moo = (mv << 1) & mask;
+                while moo & taken != 0 {
+                    // こちらの方向に取れる石が続いている
+                    r |= moo;
+                    moo = (moo << 1) & mask;
+                }
+                if moo & taker != 0 {
+                    //終点にも石があったので取れる
+                    result |= r;
+                }
+                // 下
+                let mut r = 0u64;
+                let mask = 0xffffffffffffff00;
+                let mut moo = (mv << 8) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo << 8) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 左上
+                let mut r = 0u64;
+                let mask = 0x007f7f7f7f7f7f7f;
+                let mut moo = (mv >> 9) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo >> 9) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 右上
+                let mut r = 0u64;
+                let mask = 0x00fefefefefefefe;
+                let mut moo = (mv >> 7) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo >> 7) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 左下
+                let mut r = 0u64;
+                let mask = 0x7f7f7f7f7f7f7f00;
+                let mut moo = (mv << 7) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo << 7) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 右下
+                let mut r = 0u64;
+                let mask = 0xfefefefefefefe00;
+                let mut moo = (mv << 9) & mask;
+                while moo & taken != 0 {
+                    r |= moo;
+                    moo = (moo << 9) & mask;
+                }
+                if moo & taker != 0 {
+                    result |= r;
+                }
+                // 終了
+                if result == 0 {
+                    trace!("ah... \n {}", self.pretty_print());
+                    return Err(format!("Cannot take pieces {:?} {}, {}", self.get_turn(), x, y));
+                }
+                let t = self.get_turn();
+                if t == Turn::Black {
+                    self.black |= mv | result;
+                    self.white ^= result;
+                } else {
+                    self.white |= mv | result;
+                    self.black ^= result;
+                }
+                self.set_turn(flip_turn(t));
+                return Ok(());
+            },
+        }
+    }
 }
 fn idx(x: u8, y: u8) -> u64 {
     1 << ((x as u64) | ((y as u64) << 3))
