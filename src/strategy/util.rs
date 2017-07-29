@@ -1,6 +1,5 @@
 // Utilities for implementating strategies.
 use std::iter::Iterator;
-use std::ops::Range;
 
 use board::{Board, Tile, Turn, Move, turn_to_tile};
 
@@ -57,29 +56,106 @@ pub fn putable(board: &Board, x: u8, y: u8, turn: Turn) -> bool {
 }
 
 // iterは左上から順番に返すような感じがする
-pub struct MoveIter<'a> {
-    board: &'a Board,
-    turn: Turn,
-    iter: Range<u8>,
+pub struct MoveIter {
+    bits: u64,
+    iter: usize,
 }
-impl<'a> MoveIter<'a> {
-    fn new(board: &'a Board, turn: Turn) -> MoveIter<'a> {
-        let iter = 0..64;
+impl MoveIter {
+    fn new(board: &Board, turn: Turn) -> MoveIter {
+        let (black, white) = board.bitboard();
+        let (taker, taken) =
+            if turn == Turn::Black {
+                (black, white)
+            } else {
+                (white, black)
+            };
+        let mut takable = 0u64;
+        // 8方向に
+
+        // 左へ
+        let area = taken & 0x7e7e7e7e7e7e7e7e;
+        // 取る色の左隣にある取られる色（両端除く）
+        let mut t = area & (taker >> 1);
+        for _ in 0..5 {
+            // さらにその左隣も入れる
+            t |= area & (t >> 1);
+        }
+        takable |= t;
+        // 上
+        let area = taken & 0x00ffffffffffff00;
+        let mut t = area & (taker >> 8);
+        for _ in 0..5 {
+            t |= area & (t >> 8);
+        }
+        takable |= t;
+        // 右
+        let area = taken & 0x7e7e7e7e7e7e7e7e;
+        // 取る色の左隣にある取られる色（両端除く）
+        let mut t = area & (taker << 1);
+        for _ in 0..5 {
+            // さらにその左隣も入れる
+            t |= area & (t << 1);
+        }
+        takable |= t << 1;
+        // 下
+        let area = taken & 0x00ffffffffffff00;
+        let mut t = area & (taker << 8);
+        for _ in 0..5 {
+            t |= area & (t << 8);
+        }
+        takable |= t << 8;
+        // 左上
+        let area = taken & 0x007e7e7e7e7e7e00;
+        let mut t = area & (taker >> 9);
+        for _ in 0..5 {
+            t |= area & (t >> 9);
+        }
+        takable |= t >> 9;
+        // 右上
+        let area = taken & 0x007e7e7e7e7e7e00;
+        let mut t = area & (taker >> 7);
+        for _ in 0..5 {
+            t |= area & (t >> 7);
+        }
+        takable |= t >> 7;
+        // 左下
+        let area = taken & 0x007e7e7e7e7e7e00;
+        let mut t = area & (taker << 7);
+        for _ in 0..5 {
+            t |= area & (t << 7);
+        }
+        takable |= t << 7;
+        // 右下
+        let area = taken & 0x007e7e7e7e7e7e00;
+        let mut t = area & (taker << 9);
+        for _ in 0..5 {
+            t |= area & (t << 9);
+        }
+        takable |= t << 9;
+
+        // 石がないところに制限
+        takable &= !(black | white);
+
         MoveIter {
-            board,
-            turn,
-            iter,
+            bits: takable,
+            iter: 0,
         }
     }
+    pub fn count_moves(&self) -> u32 {
+        self.bits.count_ones()
+    }
 }
-impl<'a> Iterator for MoveIter<'a> {
+impl Iterator for MoveIter {
     type Item = Move;
     fn next(&mut self) -> Option<Move> {
-        while let Some(i) = self.iter.next() {
-            let x = i >> 3;
-            let y = i & 0x7;
-            // x, yにおけるか?
-            if putable(self.board, x, y, self.turn) {
+        while self.iter < 64 {
+            let i = self.iter;
+            let idx = 1 << i;
+            self.iter += 1;
+            if self.bits & idx != 0 {
+                let x = (i as u8) & 0x07;
+                let y = (i as u8) >> 3;
+                // x, yにおけるか?
                 return Some(Move::Put {
                     x,
                     y,
@@ -90,6 +166,6 @@ impl<'a> Iterator for MoveIter<'a> {
     }
 }
 
-pub fn iter_moves<'a>(board: &'a Board, turn: Turn) -> MoveIter<'a> {
+pub fn iter_moves(board: &Board, turn: Turn) -> MoveIter {
     MoveIter::new(board, turn)
 }

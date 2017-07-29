@@ -6,7 +6,7 @@ use std::fs::File;
 use rand;
 use rand::distributions;
 use rand::distributions::IndependentSample;
-use byteorder::{ReadBytesExt, BigEndian};
+use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
 
 use board::{Move, Turn};
 
@@ -54,7 +54,7 @@ impl Book {
             Ok(mut file) => {
                 file.read_to_end(&mut book).unwrap();
                 let mut book = Cursor::new(book);
-                let (block, first, last) = Self::init_cursor(&mut book);
+                let (block, first, last, runout) = Self::init_cursor(&mut book);
                 return Book {
                     book,
                     block,
@@ -63,12 +63,13 @@ impl Book {
                     index: 0,
                     opening: true,
                     transform,
-                    runout: false,
+                    runout,
                 };
             },
             Err(err) => {
                 if err.kind() == io::ErrorKind::NotFound {
                     // book is not prepared
+                    book.write_u64::<BigEndian>(0).unwrap();
                     return Book {
                         book: Cursor::new(book),
                         block: 0,
@@ -88,23 +89,26 @@ impl Book {
 
     }
     pub fn reset(&mut self) {
-        let (block, first, last) = Self::init_cursor(&mut self.book);
+        let (block, first, last, runout) = Self::init_cursor(&mut self.book);
         self.block = block;
         self.first = first;
         self.last = last;
         self.index = 0;
         self.opening = true;
-        self.runout = false;
+        self.runout = runout;
     }
     // first, lastを初期状態に
-    fn init_cursor(book: &mut Cursor<Vec<u8>>) -> (u64, u64, u64) {
+    fn init_cursor(book: &mut Cursor<Vec<u8>>) -> (u64, u64, u64, bool) {
         // 最初のblock
         book.set_position(0);
         let block_size = book.read_u64::<BigEndian>().unwrap();
+        if block_size == 0 {
+            return (0, 0, 0, true);
+        }
         let block = 8;
         let first = 0;
         let last = block_size - 1;
-        return (block, first, last);
+        return (block, first, last, false);
     }
     pub fn gen(&mut self, color: Turn, last_move: Option<Move>) -> Option<(Move, bool)> {
         if self.runout {

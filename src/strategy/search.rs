@@ -259,7 +259,7 @@ pub fn stable_check(board: &Board, color: Tile, fixedcache: u64) -> (u64, u32) {
     return (fixed, fixed.count_ones());
 }
 fn putnum_check(board: &Board, turn: Turn) -> i32 {
-    iter_moves(board, turn).count() as i32
+    iter_moves(board, turn).count_moves() as i32
 }
 
 pub struct Searcher {

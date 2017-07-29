@@ -64,6 +64,9 @@ pub trait Board: Debug {
         result
     }
 
+    // bitboard data
+    // VecBoardの存在意義 is 何
+    fn bitboard(&self) -> (u64, u64);
 
     // apply a move to board.
     fn apply_move(&mut self, mv: Move) -> Result<(), String>{
@@ -226,6 +229,26 @@ impl Board for VecBoard{
     fn set_turn(&mut self, turn: Turn){
         self.turn = turn;
     }
+    fn bitboard(&self) -> (u64, u64) {
+        let mut i = 1u64;
+        let mut black = 0u64;
+        let mut white = 0u64;
+        for y in 0..8 {
+            for x in 0..8 {
+                match self.get(x, y) {
+                    Tile::Black => {
+                        black |= i;
+                    },
+                    Tile::White => {
+                        white |= i;
+                    },
+                    Tile::Empty => (),
+                }
+                i += 1;
+            }
+        }
+        return (black, white);
+    }
 }
 
 
@@ -286,6 +309,9 @@ impl Board for BitBoard {
     }
     fn set_turn(&mut self, turn: Turn) {
         self.turn = turn;
+    }
+    fn bitboard(&self) -> (u64, u64) {
+        return (self.black, self.white);
     }
     fn count(&self, tile: Tile) -> u32 {
         match tile {
